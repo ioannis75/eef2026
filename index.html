@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Από τα bits στα qubits · ΕΕΦ 2026</title>
+<meta name="description" content="Συνοδευτικό υλικό της εισήγησης στο 21ο Πανελλήνιο Συνέδριο της ΕΕΦ: διαδραστική προσομοίωση κβαντικού υπολογιστή NMR και το πλήρες άρθρο.">
+<meta property="og:title" content="Από τα bits στα qubits · ΕΕΦ 2026">
+<meta property="og:description" content="Διαδραστική προσομοίωση κβαντικού υπολογιστή NMR δύο qubits και το πλήρες άρθρο με έξι εργαστηριακά πειράματα.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ioannis75.github.io/eef2026/">
+<meta name="theme-color" content="#f3f6f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1620" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%232c5ba6' stroke-width='2.5'/%3E%3Cpath d='M16 16 L24 7' stroke='%23c98a00' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600&family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f3f6f2; --panel: #fbfcfa; --ink: #16223a; --ink-2: #536078;
+  --line: #c3cdd6; --grid: #dcebe3; --h: #2c5ba6; --p: #ad2d66; --rf: #c98a00;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1620; --panel: #141f2b; --ink: #e5ebf3; --ink-2: #a3b1c4;
+    --line: #34485d; --grid: #1c2d3c; --h: #82aaf2; --p: #f07dae; --rf: #f0bf45;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1620; --panel: #141f2b; --ink: #e5ebf3; --ink-2: #a3b1c4;
+  --line: #34485d; --grid: #1c2d3c; --h: #82aaf2; --p: #f07dae; --rf: #f0bf45;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: "Commissioner", "Noto Sans", "Segoe UI", system-ui, sans-serif;
+  font-size: 17px; line-height: 1.6;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+}
+a { color: var(--h); }
+:focus-visible { outline: 2px solid var(--h); outline-offset: 3px; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+@media (max-width: 480px) { .wrap { padding: 0 16px; } }
+
+header.hero { padding: 48px 0 28px; border-bottom: 1px solid var(--line); }
+.event { font-size: 0.9rem; letter-spacing: 0.02em; color: var(--ink-2); margin: 0 0 18px; }
+.event b { color: var(--ink); font-weight: 600; }
+h1, h2 { font-family: "Literata", "Noto Serif", Georgia, serif; line-height: 1.12; margin: 0; }
+h1 { font-size: clamp(2.3rem, 1.5rem + 4vw, 4rem); font-weight: 700; letter-spacing: -0.02em; }
+.subtitle { font-family: "Literata", Georgia, serif; font-size: clamp(1.15rem, 1rem + 0.8vw, 1.5rem); font-weight: 500; margin: 12px 0 0; max-width: 32ch; }
+.author { margin: 22px 0 0; color: var(--ink-2); font-size: 0.98rem; max-width: 60ch; }
+.author b { color: var(--ink); font-weight: 600; }
+
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 32px 0 8px; }
+@media (min-width: 720px) { .cards { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.card {
+  display: flex; flex-direction: column; gap: 12px; padding: 24px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--ink); text-decoration: none; transition: border-color .15s ease;
+}
+.card:hover { border-color: var(--ink-2); }
+.card .kicker { font-size: 0.82rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.card.sim .kicker { color: var(--h); }
+.card.paper .kicker { color: var(--p); }
+.card h2 { font-size: 1.55rem; font-weight: 600; }
+.card p { margin: 0; color: var(--ink-2); }
+.card .go {
+  margin-top: auto; align-self: flex-start; display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 0.98rem;
+  background: var(--ink); color: var(--panel);
+}
+.card .go svg { width: 18px; height: 18px; }
+.meta { font-size: 0.88rem; color: var(--ink-2); }
+
+section.abstract { padding: 28px 0 8px; }
+section.abstract h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 10px; }
+section.abstract p { margin: 0 0 12px; max-width: 70ch; }
+.keywords { color: var(--ink-2); font-size: 0.95rem; }
+.keywords b { color: var(--ink); font-weight: 600; }
+
+footer { margin-top: 32px; padding: 22px 0 40px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 0.9rem; }
+footer p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="event"><b>21ο Πανελλήνιο Συνέδριο της ΕΕΦ</b> · 2026</p>
+    <h1>Από τα bits στα qubits</h1>
+    <p class="subtitle">Πραγματικά πειράματα και αλγόριθμοι σε φορητό κβαντικό επεξεργαστή</p>
+    <p class="author"><b>Ιωάννης Θεοδώνης</b> · ΕΔΙΠ Τομέα Φυσικής, Σχολή Εφαρμοσμένων Μαθηματικών και Φυσικών Επιστημών, Εθνικό Μετσόβιο Πολυτεχνείο</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="cards">
+    <a class="card sim" href="nmr.html">
+      <span class="kicker">Διαδραστικό</span>
+      <h2>Προσομοίωση κβαντικού υπολογιστή NMR</h2>
+      <p>Δείτε πώς οι παλμοί ραδιοσυχνοτήτων στρέφουν τα πυρηνικά spin και συνθέστε τα δικά σας κυκλώματα δύο qubits, με τομογραφία, φάσματα και ακολουθία παλμών.</p>
+      <span class="meta">Λειτουργεί σε κινητό, tablet και υπολογιστή</span>
+      <span class="go">Άνοιγμα προσομοίωσης
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h11M11 5l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </a>
+    <a class="card paper" href="apo-ta-bits-sta-qubits.pdf" target="_blank" rel="noopener">
+      <span class="kicker">Άρθρο</span>
+      <h2>Το πλήρες κείμενο</h2>
+      <p>Από τον κλασικό υπολογισμό στην κβαντική φυσική και στην κατασκευή του οργάνου, με έξι εργαστηριακά πειράματα βήμα προς βήμα.</p>
+      <span class="meta">PDF · 43 σελίδες · 1,6 MB</span>
+      <span class="go">Ανάγνωση PDF
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3v10M5.5 8.5 10 13l4.5-4.5M4 17h12" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </a>
+  </div>
+
+  <section class="abstract" aria-labelledby="abs">
+    <h2 id="abs">Περίληψη</h2>
+    <p>Η παρούσα εργασία εξετάζει τη μετάβαση από την κλασική πληροφορική στην κβαντική εποχή, χρησιμοποιώντας ως εργαλείο τον φορητό κβαντικό υπολογιστή πυρηνικού μαγνητικού συντονισμού (NMR) SpinQ Gemini Mini. Βασισμένη σε μια εκπαιδευτική προσέγγιση που συνδέει τη θεωρία με την πράξη, αναλύει πώς φυσικές οντότητες, όπως τα πυρηνικά σπιν ατόμων υδρογόνου και φωσφόρου, μετατρέπονται σε qubits. Παρουσιάζεται η υλοποίηση θεμελιωδών κβαντικών πυλών (Hadamard, CNOT) και η δημιουργία σύμπλεξης, καθώς και η εκτέλεση εμβληματικών αλγορίθμων, όπως οι Deutsch και Grover, σε πραγματικό υλικό που λειτουργεί σε θερμοκρασία δωματίου.</p>
+    <p>Η παρουσίαση ακολουθεί τη διδακτική πορεία των Sun κ.ά. (2024): από τον κλασικό υπολογισμό στην κβαντική υπολογιστική, στην κβαντική φυσική και στην κατασκευή του οργάνου. Συζητά επίσης ανοιχτά τα όρια του NMR (ψευδοκαθαρές καταστάσεις, μετρήσεις συνόλου, κλιμάκωση). Σκοπός είναι να αναδειχθεί πώς η κβαντική υπολογιστική παύει να είναι μια αφηρημένη έννοια και γίνεται ένα προσβάσιμο εργαστηριακό εργαλείο για την εκπαίδευση στη Φυσική και την Πληροφορική. Το άρθρο λειτουργεί επιπλέον ως μικρός οδηγός εργαστηρίου, με έξι πειράματα βήμα προς βήμα για εκπαιδευτικούς, μαθητές Λυκείου και πρωτοετείς φοιτητές.</p>
+    <p class="keywords"><b>Λέξεις-κλειδιά:</b> κβαντική υπολογιστική, qubit, NMR, σύμπλεξη, αλγόριθμος Deutsch, αλγόριθμος Grover, SpinQ Gemini Mini, εκπαίδευση STEM</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Εργαστήριο Κβαντικών Υπολογιστών και Τεχνολογιών · ΣΕΜΦΕ, Εθνικό Μετσόβιο Πολυτεχνείο</p>
+    <p>Επικοινωνία: <a href="mailto:ytheod@mail.ntua.gr">ytheod@mail.ntua.gr</a></p>
+  </div>
+</footer>
+</body>
+</html>

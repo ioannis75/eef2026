@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Από τα bits στα qubits: προσομοίωση κβαντικού υπολογιστή NMR</title>
+<meta name="description" content="Προσομοίωση κβαντικού υπολογιστή πυρηνικού μαγνητικού συντονισμού δύο qubits: animation της φυσικής NMR και συνθέτης κβαντικών κυκλωμάτων.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Commissioner:wght@400;500;600&family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f3f6f2;
+  --panel: #fbfcfa;
+  --ink: #16223a;
+  --ink-2: #536078;
+  --grid: #dcebe3;
+  --grid-strong: #bcd7c9;
+  --line: #c3cdd6;
+  --h: #2c5ba6;
+  --p: #ad2d66;
+  --rf: #c98a00;
+  --pos: #22696e;
+  --neg: #7b55bf;
+  --g-pauli: #e2efe9;
+  --g-h: #dde7f6;
+  --g-phase: #ebe7f3;
+  --g-rot: #f7ecd2;
+  --focus: #2c5ba6;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --measure: 70ch;
+  color-scheme: light dark;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1620; --panel: #141f2b; --ink: #e5ebf3; --ink-2: #a3b1c4;
+    --grid: #1c2d3c; --grid-strong: #28425a; --line: #34485d;
+    --h: #82aaf2; --p: #f07dae; --rf: #f0bf45; --pos: #5cbcc1; --neg: #b596f0;
+    --g-pauli: #1d3a33; --g-h: #1e2f4d; --g-phase: #2c2742; --g-rot: #3d3217; --focus: #82aaf2;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1620; --panel: #141f2b; --ink: #e5ebf3; --ink-2: #a3b1c4;
+  --grid: #1c2d3c; --grid-strong: #28425a; --line: #34485d;
+  --h: #82aaf2; --p: #f07dae; --rf: #f0bf45; --pos: #5cbcc1; --neg: #b596f0;
+  --g-pauli: #1d3a33; --g-h: #1e2f4d; --g-phase: #2c2742; --g-rot: #3d3217; --focus: #82aaf2;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 64px); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: "Commissioner", "Noto Sans", "Segoe UI", system-ui, sans-serif;
+  font-size: 16px; line-height: 1.55; -webkit-text-size-adjust: 100%;
+}
+h1, h2, h3 { font-family: "Literata", "Noto Serif", Georgia, serif; font-weight: 600; line-height: 1.15; margin: 0; }
+h2 { font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.3rem); letter-spacing: -0.01em; }
+h3 { font-size: 1.12rem; font-weight: 600; }
+p { margin: 0; max-width: var(--measure); }
+a { color: var(--h); }
+sub, sup { line-height: 0; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- top bar ---------- */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.top-inner { max-width: 1180px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 16px; }
+.brand { font-family: "Literata", Georgia, serif; font-weight: 600; font-size: 1.02rem; color: var(--ink); text-decoration: none; margin-right: auto; white-space: nowrap; }
+.nav { display: flex; gap: 4px; overflow-x: auto; }
+.nav a { color: var(--ink-2); text-decoration: none; padding: 6px 10px; border-radius: var(--radius-s); white-space: nowrap; font-size: 0.95rem; }
+.nav a:hover { color: var(--ink); background: var(--grid); }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+section { padding: 56px 0 24px; }
+.lede { color: var(--ink-2); margin-top: 10px; font-size: 1.04rem; }
+
+/* ---------- hero ---------- */
+.hero { padding: 40px 0 8px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; align-items: end; }
+@media (min-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } }
+.hero h1 { font-size: clamp(2.3rem, 1.4rem + 4vw, 4.1rem); letter-spacing: -0.02em; font-weight: 700; }
+.hero .sub { margin-top: 16px; font-size: 1.12rem; color: var(--ink); max-width: 36ch; }
+.hero .source { margin-top: 14px; color: var(--ink-2); font-size: 0.9rem; max-width: 52ch; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.recorder { border: 1px solid var(--line); border-radius: var(--radius-m); overflow: hidden; background: var(--panel); }
+.recorder canvas { display: block; width: 100%; height: 210px; }
+.recorder figcaption { font-size: 0.85rem; color: var(--ink-2); padding: 8px 12px; border-top: 1px solid var(--line); }
+
+/* ---------- buttons & controls ---------- */
+.btn {
+  appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  padding: 8px 14px; border-radius: var(--radius-s); cursor: pointer; font-weight: 500; font-size: 0.95rem; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+}
+.btn:hover { border-color: var(--ink-2); }
+.btn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.btn.primary:hover { filter: brightness(1.15); }
+.btn.rf { background: var(--rf); border-color: var(--rf); color: #1b1300; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.small { padding: 5px 10px; font-size: 0.88rem; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-s); overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 11px; cursor: pointer; font-size: 0.92rem; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+label.field { display: grid; gap: 4px; font-size: 0.9rem; color: var(--ink-2); }
+.field .row { display: flex; justify-content: space-between; gap: 10px; }
+.field output { color: var(--ink); font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 100%; accent-color: var(--ink); }
+select { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius-s); padding: 7px 10px; max-width: 100%; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 0.92rem; color: var(--ink); }
+.check input { margin-top: 4px; accent-color: var(--ink); }
+
+/* ---------- physics ---------- */
+.lab { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "controls" "plots"; gap: 14px; margin-top: 22px; }
+.lab > .stage { grid-area: stage; } .lab > .controls { grid-area: controls; } .lab > .plots { grid-area: plots; }
+@media (min-width: 900px) { .lab { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); grid-template-areas: "stage controls" "plots controls"; grid-template-rows: auto 1fr; } }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-m); position: relative; }
+.stage canvas { display: block; width: 100%; height: clamp(240px, 40vh, 380px); touch-action: none; cursor: grab; }
+.stage .legend { position: absolute; left: 12px; top: 10px; font-size: 0.84rem; color: var(--ink-2); display: grid; gap: 2px; pointer-events: none; }
+.stage .frame-note { position: absolute; right: 12px; bottom: 10px; font-size: 0.8rem; color: var(--ink-2); pointer-events: none; text-align: right; }
+.controls { display: grid; gap: 12px; align-content: start; }
+.controls .group { display: grid; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.controls .group:last-child { border-bottom: 0; }
+.controls .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.plots { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; }
+@media (min-width: 640px) { .plots { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+#sim .plot canvas { height: 180px; }
+#sim .plot header { padding: 8px 10px; }
+#sim .plot .note { padding: 6px 10px; }
+.plot { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-m); overflow: hidden; }
+.plot header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.plot header h3 { font-size: 1rem; }
+.plot canvas { display: block; width: 100%; height: 230px; }
+.plot .note { font-size: 0.84rem; color: var(--ink-2); padding: 8px 12px; border-top: 1px solid var(--line); }
+
+/* ---------- composer ---------- */
+.composer { margin-top: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-m); }
+.palette { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; border-bottom: 1px solid var(--line); align-items: center; }
+.palette .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.chip {
+  min-width: 46px; height: 42px; padding: 0 10px; border-radius: var(--radius-s); border: 1px solid var(--ink-2);
+  font-weight: 600; font-size: 0.98rem; cursor: grab; color: var(--ink); background: var(--g-pauli);
+}
+.chip[data-cat="h"] { background: var(--g-h); }
+.chip[data-cat="phase"] { background: var(--g-phase); }
+.chip[data-cat="rot"] { background: var(--g-rot); }
+.chip[data-cat="two"] { background: var(--panel); }
+.chip[aria-pressed="true"] { outline: 2px solid var(--rf); outline-offset: 2px; }
+.circuit-wrap { overflow-x: auto; padding: 8px 6px 4px; position: relative; }
+#circuit { display: block; min-width: 780px; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
+#circuit .cell { fill: transparent; cursor: pointer; }
+#circuit .cell.hot { fill: color-mix(in srgb, var(--rf) 22%, transparent); }
+#circuit .stepband { fill: color-mix(in srgb, var(--ink) 7%, transparent); }
+#circuit .placed { cursor: pointer; }
+#circuit .gate-rect { stroke: var(--ink-2); stroke-width: 1.2; }
+#circuit text { font-family: "Commissioner", system-ui, sans-serif; fill: var(--ink); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--line); }
+.toolbar .spacer { flex: 1; }
+.toolbar label { font-size: 0.9rem; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+.explain { padding: 12px 14px; border-top: 1px solid var(--line); color: var(--ink); font-size: 0.96rem; }
+.explain p { max-width: 90ch; }
+.status { display: grid; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.status .msg { font-size: 0.95rem; }
+.progress { height: 4px; background: var(--grid); border-radius: 2px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--rf); }
+.results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 18px; }
+@media (min-width: 900px) { .results { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .results .wide { grid-column: 1 / -1; } }
+.qstate { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 8px 0; }
+.qstate figure { margin: 0; text-align: center; font-size: 0.86rem; color: var(--ink-2); }
+.qstate canvas { width: 100%; aspect-ratio: 1 / 1; height: auto; display: block; }
+.ket { padding: 6px 12px 10px; font-family: "Literata", Georgia, serif; font-size: 1.05rem; overflow-x: auto; white-space: nowrap; }
+.stepper { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.stepper input { flex: 1; min-width: 140px; }
+.stepper output { font-size: 0.9rem; color: var(--ink-2); min-width: 8ch; }
+.dm { display: grid; grid-template-columns: 1fr 1fr; }
+.dm canvas { height: 250px; }
+.seq-scroll { overflow-x: auto; }
+.seq-scroll canvas { height: 190px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--ink-2); }
+.facts b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.popover {
+  position: absolute; z-index: 30; background: var(--panel); border: 1px solid var(--ink-2); border-radius: var(--radius-m);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 20%, transparent); padding: 12px; display: grid; gap: 10px; min-width: 220px;
+}
+.popover[hidden] { display: none; }
+.popover .title { font-weight: 600; }
+.popover .inline { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.popover input[type="number"] { width: 90px; border: 1px solid var(--line); border-radius: var(--radius-s); padding: 5px 8px; background: var(--paper); }
+
+/* ---------- about ---------- */
+.about { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; margin-top: 22px; }
+@media (min-width: 900px) { .about { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); } }
+.about p + p { margin-top: 12px; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { border-bottom: 1.5px solid var(--ink-2); font-weight: 600; }
+footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 22px 0 36px; color: var(--ink-2); font-size: 0.9rem; }
+.muted { color: var(--ink-2); }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.h-color { color: var(--h); font-weight: 600; }
+.p-color { color: var(--p); font-weight: 600; }
+
+/* ---------- pages ---------- */
+.page[hidden] { display: none !important; }
+.nav a[aria-current="page"] { color: var(--ink); background: var(--grid); font-weight: 600; }
+.entries { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin-top: 40px; border-top: 1px solid var(--line); }
+@media (min-width: 760px) { .entries { grid-template-columns: 1fr 1fr; } .entry + .entry { border-left: 1px solid var(--line); } }
+.entry { display: block; padding: 22px 20px 26px 0; color: var(--ink); text-decoration: none; }
+.entry + .entry { padding-left: 20px; }
+@media (max-width: 759px) { .entry + .entry { padding-left: 0; border-top: 1px solid var(--line); } }
+.entry h2 { font-size: 1.45rem; }
+.entry p { color: var(--ink-2); margin-top: 8px; }
+.entry:hover h2 { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+
+@media (max-width: 620px) { .brand { display: none; } .top-inner { padding: 8px 12px; } }
+
+/* ---------- guided tour ---------- */
+.guide-row { margin-top: 12px; }
+.tour-spot { position: fixed; z-index: 1000; border-radius: 10px; box-shadow: 0 0 0 200vmax rgba(8, 14, 22, 0.5); outline: 2px solid var(--rf); pointer-events: none; transition: left .25s ease, top .25s ease, width .25s ease, height .25s ease; }
+.tour-bubble { position: fixed; z-index: 1001; width: min(360px, calc(100vw - 24px)); background: var(--panel); color: var(--ink); border: 1px solid var(--ink-2); border-radius: var(--radius-m); padding: 16px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28); display: grid; gap: 10px; }
+.tour-bubble[hidden], .tour-spot[hidden] { display: none; }
+.tour-bubble h3 { font-size: 1.12rem; }
+.tour-bubble p { font-size: 0.95rem; }
+.tour-count { font-size: 0.8rem; color: var(--ink-2); }
+.tour-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tour-actions .spacer { flex: 1; }
+.tour-bubble.dock { left: 12px !important; right: 12px; width: auto; top: auto !important; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+@media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
+
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="#home">Από τα bits στα qubits</a>
+    <nav class="nav" aria-label="Σελίδες">
+      <a href="#home">Αρχική</a>
+      <a href="#sim">Προσομοίωση NMR</a>
+      <a href="#composer">Συνθέτης κυκλωμάτων</a>
+      <a href="#about">Σχετικά</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero page" id="home" data-page>
+    <div class="wrap hero-grid">
+      <div>
+        <h1>Από τα bits στα qubits</h1>
+        <p class="sub">Ένας κβαντικός υπολογιστής πυρηνικού μαγνητικού συντονισμού δύο qubits, σε προσομοίωση. Δείτε πώς οι παλμοί ραδιοσυχνοτήτων στρέφουν τα πυρηνικά spin και συνθέστε τους δικούς σας κβαντικούς αλγορίθμους.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#sim">Άνοιγμα προσομοίωσης</a>
+          <a class="btn" href="#composer">Άνοιγμα συνθέτη</a>
+        </div>
+        <p class="source">Συνοδευτικό υλικό της εισήγησης «Από τα Bits στα Qubits: Πραγματικά Πειράματα και Αλγόριθμοι σε Κβαντικό Επεξεργαστή Πυρηνικού Μαγνητικού Συντονισμού», 21ο Πανελλήνιο Συνέδριο της ΕΕΦ. Ιωάννης Θεοδώνης, ΣΕΜΦΕ ΕΜΠ. <a href="./">Το άρθρο και όλο το υλικό της εισήγησης</a></p>
+      </div>
+      <figure class="recorder" style="margin:0">
+        <canvas id="heroCanvas" aria-label="Κινούμενο σήμα ελεύθερης επαγωγικής απόσβεσης πάνω σε χαρτί καταγραφικού"></canvas>
+        <figcaption>Σήμα ελεύθερης επαγωγικής απόσβεσης του ¹H μετά από διαδοχικούς παλμούς 90° (προσομοίωση). Κάθε κίτρινη ένδειξη είναι ένας παλμός.</figcaption>
+      </figure>
+    </div>
+    <div class="wrap entries">
+      <a class="entry" href="#sim">
+        <h2>Προσομοίωση NMR</h2>
+        <p>Η μαγνήτιση του δείγματος σε κίνηση: παλμοί ραδιοσυχνοτήτων, μετάπτωση, αποσυνοχή, ηχώ spin, σύζευξη J, σήμα και φάσμα. Την πρώτη φορά ένας σύντομος οδηγός εξηγεί τι να κάνετε.</p>
+      </a>
+      <a class="entry" href="#composer">
+        <h2>Συνθέτης κυκλωμάτων</h2>
+        <p>Συνθέστε κυκλώματα δύο qubits με μεταφορά πυλών και εκτελέστε τα σε προσομοιωμένη συσκευή NMR, με τομογραφία, φάσματα και ακολουθία παλμών. Την πρώτη φορά ένας σύντομος οδηγός εξηγεί τι να κάνετε.</p>
+      </a>
+    </div>
+  </section>
+
+  <section class="page" id="sim" data-page hidden>
+    <div class="wrap">
+      <h2>Προσομοίωση NMR: η φυσική σε κίνηση</h2>
+      <p class="lede">Κάθε λεπτό βέλος είναι μια ομάδα πυρηνικών spin του δείγματος που νιώθει ελαφρώς διαφορετικό πεδίο. Το παχύ βέλος είναι η συνολική μαγνήτιση, αυτή που «ακούει» το πηνίο. Εφαρμόστε έναν παλμό και παρακολουθήστε τη μετάπτωση, την αποσυνοχή και το σήμα. Σύρετε τη σφαίρα για να την περιστρέψετε.</p>
+      <p class="guide-row"><button class="btn small" type="button" id="simGuideBtn" data-tour="sim">Οδηγός χρήσης</button></p>
+
+      <div class="lab">
+        <div class="stage">
+          <canvas id="blochCanvas" aria-label="Σφαίρα Bloch με τη μαγνήτιση του δείγματος"></canvas>
+          <div class="legend" id="stageLegend"></div>
+          <div class="frame-note" id="frameNote"></div>
+        </div>
+
+        <div class="controls">
+          <div class="group" id="grpPulse">
+            <div class="inline">
+              <span class="muted" style="font-size:.9rem">Πυρήνας</span>
+              <div class="seg" id="nucSeg">
+                <button type="button" data-v="H" aria-pressed="true">¹H, 27,7 MHz</button>
+                <button type="button" data-v="P" aria-pressed="false">³¹P, 11,2 MHz</button>
+              </div>
+            </div>
+            <label class="field"><span class="row"><span>Γωνία παλμού</span><output id="angleOut">90°</output></span>
+              <input id="angle" type="range" min="0" max="360" step="5" value="90"></label>
+            <div class="inline">
+              <span class="muted" style="font-size:.9rem">Άξονας</span>
+              <div class="seg" id="phaseSeg">
+                <button type="button" data-v="0" aria-pressed="true">x</button>
+                <button type="button" data-v="90" aria-pressed="false">y</button>
+                <button type="button" data-v="180" aria-pressed="false">−x</button>
+                <button type="button" data-v="270" aria-pressed="false">−y</button>
+              </div>
+            </div>
+            <div class="inline">
+              <button class="btn rf" type="button" id="pulseBtn">Εφαρμογή παλμού</button>
+              <button class="btn" type="button" id="resetBtn">Επαναφορά σε ισορροπία</button>
+              <button class="btn" type="button" id="pauseBtn" aria-pressed="false">Παύση</button>
+            </div>
+          </div>
+
+          <div class="group" id="grpParams">
+            <label class="field"><span class="row"><span>Αποσυντονισμός Δν</span><output id="dvOut">+150 Hz</output></span>
+              <input id="dv" type="range" min="-400" max="400" step="10" value="150"></label>
+            <label class="field"><span class="row"><span>Ανομοιογένεια πεδίου</span><output id="sigmaOut">8 Hz</output></span>
+              <input id="sigma" type="range" min="0" max="40" step="1" value="8"></label>
+            <label class="field"><span class="row"><span>Χρόνος T₂</span><output id="t2Out">150 ms</output></span>
+              <input id="t2" type="range" min="30" max="500" step="10" value="150"></label>
+            <label class="check"><input type="checkbox" id="jToggle"> <span>Σύζευξη J με τον γειτονικό πυρήνα (J ≈ 697 Hz): οι πυρήνες χωρίζονται σε δύο ομάδες, ανάλογα με την κατάσταση του γείτονα.</span></label>
+          </div>
+
+          <div class="group" id="grpEcho">
+            <label class="field"><span class="row"><span>Ηχώ spin: χρόνος τ</span><output id="tauOut">40 ms</output></span>
+              <input id="tau" type="range" min="10" max="120" step="5" value="40"></label>
+            <div class="inline">
+              <button class="btn" type="button" id="echoBtn">Εκτέλεση 90°x – τ – 180°y – τ</button>
+            </div>
+          </div>
+
+          <div class="group" id="grpView">
+            <div class="inline">
+              <span class="muted" style="font-size:.9rem">Σύστημα αναφοράς</span>
+              <div class="seg" id="frameSeg">
+                <button type="button" data-v="rot" aria-pressed="true">Περιστρεφόμενο</button>
+                <button type="button" data-v="lab" aria-pressed="false">Εργαστηρίου</button>
+              </div>
+            </div>
+            <label class="field"><span class="row"><span>Ταχύτητα προβολής</span><output id="speedOut">1 s ≙ 20 ms</output></span>
+              <input id="speed" type="range" min="2" max="60" step="1" value="20"></label>
+          </div>
+        </div>
+        <div class="plots">
+          <div class="plot" id="scopePlot">
+            <header><h3>Σήμα στο πηνίο</h3><span class="muted" style="font-size:.84rem">περιστρεφόμενο σύστημα, M<sub>x</sub> συνεχής, M<sub>y</sub> αχνή</span></header>
+            <canvas id="scopeCanvas" aria-label="Σήμα στο πηνίο συναρτήσει του χρόνου"></canvas>
+            <p class="note" id="scopeNote">Ο χρόνος μετριέται σε ms από την έναρξη.</p>
+          </div>
+          <div class="plot" id="specPlot">
+            <header>
+              <h3 id="specTitle">Φάσμα</h3>
+              <div class="seg" id="specSeg">
+                <button type="button" data-v="fft" aria-pressed="true">Φάσμα (FFT)</button>
+                <button type="button" data-v="rabi" aria-pressed="false">Ταλαντώσεις Rabi</button>
+              </div>
+            </header>
+            <canvas id="specCanvas" aria-label="Φάσμα ή ταλαντώσεις Rabi"></canvas>
+            <p class="note" id="specNote">Μετασχηματισμός Fourier του σήματος από τον τελευταίο παλμό και μετά.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="page" id="composer" data-page hidden>
+    <div class="wrap">
+      <h2>Συνθέτης κβαντικών κυκλωμάτων</h2>
+      <p class="lede">Σύρετε μια πύλη πάνω στις γραμμές των qubits ή επιλέξτε την και πατήστε στη θέση που θέλετε. Πατήστε μια τοποθετημένη πύλη για να αλλάξετε τη γωνία της ή να τη διαγράψετε. Το Q0 είναι ο πυρήνας ¹H και το Q1 ο ³¹P του διμεθυλοφωσφίτη.</p>
+      <p class="guide-row"><button class="btn small" type="button" id="composerGuideBtn" data-tour="composer">Οδηγός χρήσης</button></p>
+
+      <div class="composer">
+        <div class="palette" id="palette" aria-label="Παλέτα πυλών"></div>
+        <div class="circuit-wrap" id="circuitWrap">
+          <svg id="circuit" role="application" aria-label="Κύκλωμα δύο qubits"></svg>
+          <div class="popover" id="popover" hidden role="dialog" aria-label="Ρυθμίσεις πύλης"></div>
+        </div>
+        <div class="toolbar" id="runBar">
+          <label id="exampleField">Παράδειγμα <select id="exampleSel"></select></label>
+          <label>Συσκευή <select id="deviceSel">
+            <option value="mini">Gemini Mini (προσομοίωση)</option>
+            <option value="pro">Gemini Mini Pro (προσομοίωση)</option>
+          </select></label>
+          <span class="spacer"></span>
+          <button class="btn" type="button" id="clearBtn">Καθαρισμός</button>
+          <button class="btn" type="button" id="idealBtn">Ιδανική προσομοίωση</button>
+          <button class="btn primary" type="button" id="runBtn">Εκτέλεση σε NMR</button>
+        </div>
+        <div class="explain" id="explain"><p></p></div>
+        <div class="status" aria-live="polite">
+          <div class="msg" id="statusMsg"></div>
+          <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+        </div>
+      </div>
+
+      <div class="results">
+        <div class="plot" id="resProb">
+          <header><h3>Πιθανότητες μέτρησης</h3><span class="muted" style="font-size:.84rem" id="probLegend"></span></header>
+          <canvas id="probCanvas" aria-label="Πιθανότητες των καταστάσεων της υπολογιστικής βάσης"></canvas>
+        </div>
+        <div class="plot" id="resState">
+          <header><h3>Κατάσταση των qubits</h3><span class="muted" style="font-size:.84rem">ιδανική εξέλιξη βήμα προς βήμα</span></header>
+          <div class="qstate">
+            <figure><canvas id="bq0" aria-label="Σφαίρα Bloch του Q0"></canvas><figcaption>Q0, <span class="h-color">¹H</span></figcaption></figure>
+            <figure><canvas id="bq1" aria-label="Σφαίρα Bloch του Q1"></canvas><figcaption>Q1, <span class="p-color">³¹P</span></figcaption></figure>
+          </div>
+          <div class="ket" id="ketOut"></div>
+          <div class="facts" id="stateFacts"></div>
+          <div class="stepper">
+            <button class="btn small" type="button" id="stepPrev" aria-label="Προηγούμενο βήμα">‹</button>
+            <input type="range" id="stepRange" min="0" max="0" value="0" aria-label="Βήμα του κυκλώματος">
+            <button class="btn small" type="button" id="stepNext" aria-label="Επόμενο βήμα">›</button>
+            <output id="stepOut"></output>
+          </div>
+        </div>
+        <div class="plot wide" id="resDM">
+          <header><h3>Πίνακας πυκνότητας από την τομογραφία</h3><span class="muted" style="font-size:.84rem">σειρές και στήλες: |q0 q1⟩</span></header>
+          <div class="dm"><canvas id="dmRe" aria-label="Πραγματικό μέρος του πίνακα πυκνότητας"></canvas><canvas id="dmIm" aria-label="Φανταστικό μέρος του πίνακα πυκνότητας"></canvas></div>
+          <div class="facts" id="runFacts"></div>
+        </div>
+        <div class="plot" id="resNMR">
+          <header>
+            <h3>Φάσματα NMR</h3>
+            <div class="seg" id="readSeg">
+              <button type="button" data-v="y90" aria-pressed="true">Με παλμό 90°</button>
+              <button type="button" data-v="none" aria-pressed="false">Χωρίς παλμό</button>
+            </div>
+          </header>
+          <canvas id="nmrCanvas" aria-label="Φάσματα ¹H και ³¹P"></canvas>
+          <p class="note" id="nmrNote">Με παλμό ανάγνωσης 90°: το πρόσημο κάθε γραμμής δείχνει την κατάσταση του παρατηρούμενου πυρήνα και η θέση της την κατάσταση του γείτονα.</p>
+        </div>
+        <div class="plot" id="resSeq">
+          <header><h3>Ακολουθία παλμών</h3><span class="muted" style="font-size:.84rem" id="seqLegend"></span></header>
+          <div class="seq-scroll"><canvas id="seqCanvas" aria-label="Ακολουθία παλμών ραδιοσυχνοτήτων"></canvas></div>
+          <p class="note">Κάθε πύλη μεταφράζεται σε παλμούς ραδιοσυχνοτήτων (ορθογώνια), εικονικές στροφές z (ρόμβοι) και ελεύθερη εξέλιξη υπό τη σύζευξη J (1/2J ≈ 0,72 ms).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="about" data-page hidden>
+    <div class="wrap">
+      <h2>Σχετικά με την προσομοίωση</h2>
+      <div class="about">
+        <div>
+          <p>Ο συνθέτης υπολογίζει ακριβώς την εξέλιξη δύο qubits. Στην «Εκτέλεση σε NMR» κάθε πύλη μεταφράζεται στους παλμούς και στις περιόδους σύζευξης J που θα εφάρμοζε ένας επιτραπέζιος κβαντικός υπολογιστής NMR. Κατά τη διάρκειά τους δρουν η αποσυνοχή και οι ατέλειες των παλμών, και στο τέλος ο πίνακας πυκνότητας ανακατασκευάζεται με θορυβώδη τομογραφία, όπως στη συσκευή.</p>
+          <p>Οι παράμετροι θορύβου είναι ενδεικτικές. Επιλέχθηκαν ώστε η προσομοίωση να αναπαράγει τις πιστότητες που δίνει ο κατασκευαστής για τους αλγορίθμους Grover (0,80 και 0,86) και Deutsch (0,86 και 0,90). Η σελίδα είναι εκπαιδευτική προσομοίωση και δεν συνδέεται με πραγματική συσκευή.</p>
+          <p>Η ενότητα «Η φυσική σε κίνηση» προσομοιώνει ένα σύνολο ισοχρωμάτων με τις εξισώσεις Bloch. Οι παλμοί θεωρούνται στιγμιαίοι και οι χρόνοι είναι οι πραγματικοί, απλώς επιβραδυμένοι στην προβολή.</p>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Παράμετρος</th><th>Gemini Mini</th><th>Gemini Mini Pro</th></tr></thead>
+            <tbody>
+              <tr><td>T₁</td><td>3 s</td><td>5 s</td></tr>
+              <tr><td>T₂* (χωρίς επανεστίαση)</td><td>30 ms</td><td>50 ms</td></tr>
+              <tr><td>Σφάλμα πλάτους παλμών</td><td>1,5%</td><td>0,8%</td></tr>
+              <tr><td>Σφάλμα προετοιμασίας και ανάγνωσης</td><td>16,5%</td><td>12%</td></tr>
+              <tr><td>Παλμός 90° (¹H / ³¹P)</td><td>40 / 60 μs</td><td>40 / 60 μs</td></tr>
+              <tr><td>Σύζευξη J</td><td>697,4 Hz</td><td>697,4 Hz</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <footer>
+        Ιωάννης Θεοδώνης, Σχολή Εφαρμοσμένων Μαθηματικών και Φυσικών Επιστημών, Εθνικό Μετσόβιο Πολυτεχνείο. Επικοινωνία: <a href="mailto:ytheod@mail.ntua.gr">ytheod@mail.ntua.gr</a>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<script>
+// ---------- Quantum/NMR engine (2 qubits: q0 = 1H, q1 = 31P; index = 2*b0 + b1) ----------
+const QE = (() => {
+  const S2 = Math.SQRT1_2;
+  // complex matrix: {n, re:Float64Array, im:Float64Array}
+  const M = (n) => ({ n, re: new Float64Array(n * n), im: new Float64Array(n * n) });
+  const fromRows = (rows) => { // rows: array of arrays of [re,im]
+    const n = rows.length, A = M(n);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { A.re[i * n + j] = rows[i][j][0]; A.im[i * n + j] = rows[i][j][1]; }
+    return A;
+  };
+  const eye = (n) => { const A = M(n); for (let i = 0; i < n; i++) A.re[i * n + i] = 1; return A; };
+  const mul = (A, B) => {
+    const n = A.n, C = M(n);
+    for (let i = 0; i < n; i++) for (let k = 0; k < n; k++) {
+      const ar = A.re[i * n + k], ai = A.im[i * n + k]; if (ar === 0 && ai === 0) continue;
+      for (let j = 0; j < n; j++) {
+        const br = B.re[k * n + j], bi = B.im[k * n + j];
+        C.re[i * n + j] += ar * br - ai * bi; C.im[i * n + j] += ar * bi + ai * br;
+      }
+    }
+    return C;
+  };
+  const dag = (A) => { const n = A.n, B = M(n); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { B.re[j * n + i] = A.re[i * n + j]; B.im[j * n + i] = -A.im[i * n + j]; } return B; };
+  const kron = (A, B) => {
+    const n = A.n * B.n, C = M(n);
+    for (let i = 0; i < A.n; i++) for (let j = 0; j < A.n; j++) for (let k = 0; k < B.n; k++) for (let l = 0; l < B.n; l++) {
+      const ar = A.re[i * A.n + j], ai = A.im[i * A.n + j], br = B.re[k * B.n + l], bi = B.im[k * B.n + l];
+      const r = i * B.n + k, c = j * B.n + l;
+      C.re[r * n + c] = ar * br - ai * bi; C.im[r * n + c] = ar * bi + ai * br;
+    }
+    return C;
+  };
+  const sandwich = (U, R) => mul(mul(U, R), dag(U));
+  const c = (re, im = 0) => [re, im];
+  const I2 = eye(2);
+  const G1 = {
+    I: () => eye(2),
+    X: () => fromRows([[c(0), c(1)], [c(1), c(0)]]),
+    Y: () => fromRows([[c(0), c(0, -1)], [c(0, 1), c(0)]]),
+    Z: () => fromRows([[c(1), c(0)], [c(0), c(-1)]]),
+    H: () => fromRows([[c(S2), c(S2)], [c(S2), c(-S2)]]),
+    S: () => fromRows([[c(1), c(0)], [c(0), c(0, 1)]]),
+    T: () => fromRows([[c(1), c(0)], [c(0), c(S2, S2)]]),
+    RX: (t) => fromRows([[c(Math.cos(t / 2)), c(0, -Math.sin(t / 2))], [c(0, -Math.sin(t / 2)), c(Math.cos(t / 2))]]),
+    RY: (t) => fromRows([[c(Math.cos(t / 2)), c(-Math.sin(t / 2))], [c(Math.sin(t / 2)), c(Math.cos(t / 2))]]),
+    RZ: (t) => fromRows([[c(Math.cos(t / 2), -Math.sin(t / 2)), c(0)], [c(0), c(Math.cos(t / 2), Math.sin(t / 2))]]),
+  };
+  const Rphi = (th, ph) => { const cs = Math.cos(th / 2), sn = Math.sin(th / 2);
+    // [[c, -i s e^{-i ph}], [-i s e^{i ph}, c]]
+    return fromRows([[c(cs), c(-sn * Math.sin(ph), -sn * Math.cos(ph))], [c(sn * Math.sin(ph), -sn * Math.cos(ph)), c(cs)]]); };
+  const on = (q, g) => (q === 0 ? kron(g, I2) : kron(I2, g));
+  const perm = (f) => { const A = M(4); for (let b = 0; b < 4; b++) A.re[f(b) * 4 + b] = 1; return A; };
+  const bit = (b, q) => (q === 0 ? (b >> 1) & 1 : b & 1);
+  const flip = (b, q) => (q === 0 ? b ^ 2 : b ^ 1);
+  const G2 = {
+    CNOT: (ctrl, tgt) => perm((b) => (bit(b, ctrl) ? flip(b, tgt) : b)),
+    CZ: () => { const A = eye(4); A.re[15] = -1; return A; },
+    SWAP: () => perm((b) => ((b & 1) << 1) | ((b >> 1) & 1)),
+  };
+  const UJ = (J, t) => { const a = Math.PI * J * t / 2, A = M(4); const d = [-a, a, a, -a];
+    for (let i = 0; i < 4; i++) { A.re[i * 5] = Math.cos(d[i]); A.im[i * 5] = Math.sin(d[i]); } return A; };
+
+  // ---- ideal unitary for a column ----
+  const gateU = (g, q) => {
+    const n = g.name;
+    if (n === 'RX' || n === 'RY' || n === 'RZ') return on(q, G1[n](g.theta));
+    return on(q, G1[n]());
+  };
+  const colU = (col) => {
+    if (col.two) {
+      const t = col.two;
+      if (t.name === 'CNOT') return G2.CNOT(t.ctrl, 1 - t.ctrl);
+      if (t.name === 'CZ') return G2.CZ();
+      if (t.name === 'SWAP') return G2.SWAP();
+    }
+    let U = eye(4);
+    for (const q of [0, 1]) if (col.g[q]) U = mul(gateU(col.g[q], q), U);
+    return U;
+  };
+  const circuitU = (cols) => cols.reduce((U, col) => mul(colU(col), U), eye(4));
+  const applyVec = (U, v) => { const out = { re: new Float64Array(4), im: new Float64Array(4) };
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { const ur = U.re[i * 4 + j], ui = U.im[i * 4 + j];
+      out.re[i] += ur * v.re[j] - ui * v.im[j]; out.im[i] += ur * v.im[j] + ui * v.re[j]; } return out; };
+  const ket0 = () => ({ re: Float64Array.from([1, 0, 0, 0]), im: new Float64Array(4) });
+  const states = (cols) => { const out = [ket0()]; let v = out[0]; for (const col of cols) { v = applyVec(colU(col), v); out.push(v); } return out; };
+  const dmFromVec = (v) => { const R = M(4); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      R.re[i * 4 + j] = v.re[i] * v.re[j] + v.im[i] * v.im[j]; R.im[i * 4 + j] = v.im[i] * v.re[j] - v.re[i] * v.im[j]; } return R; };
+
+  // ---- NMR compilation: gates -> RF pulses, virtual Z rotations, J evolutions ----
+  const P = (q, th, ph, g) => ({ k: 'pulse', q, th, ph, g });
+  const Zv = (q, th, g) => ({ k: 'z', q, th, g });
+  const compileGate = (g, q) => {
+    switch (g.name) {
+      case 'I': return [];
+      case 'X': return [P(q, Math.PI, 0, 'X')];
+      case 'Y': return [P(q, Math.PI, Math.PI / 2, 'Y')];
+      case 'Z': return [Zv(q, Math.PI, 'Z')];
+      case 'S': return [Zv(q, Math.PI / 2, 'S')];
+      case 'T': return [Zv(q, Math.PI / 4, 'T')];
+      case 'H': return [P(q, Math.PI / 2, Math.PI / 2, 'H'), P(q, Math.PI, 0, 'H')];
+      case 'RX': return [P(q, g.theta, 0, 'RX')];
+      case 'RY': return [P(q, g.theta, Math.PI / 2, 'RY')];
+      case 'RZ': return [Zv(q, g.theta, 'RZ')];
+    }
+    return [];
+  };
+  const compileCZ = (J, tag) => [{ k: 'J', t: 1 / (2 * J), g: tag }, Zv(0, -Math.PI / 2, tag), Zv(1, -Math.PI / 2, tag)];
+  const compileCNOT = (ctrl, J, tag) => { const t = 1 - ctrl; return [P(t, Math.PI / 2, 3 * Math.PI / 2, tag), ...compileCZ(J, tag), P(t, Math.PI / 2, Math.PI / 2, tag)]; };
+  const compile = (cols, J) => {
+    const seq = [];
+    cols.forEach((col, ci) => {
+      const add = (arr) => arr.forEach((p) => seq.push({ ...p, col: ci }));
+      if (col.two) {
+        const t = col.two;
+        if (t.name === 'CNOT') add(compileCNOT(t.ctrl, J, 'CNOT'));
+        if (t.name === 'CZ') add(compileCZ(J, 'CZ'));
+        if (t.name === 'SWAP') { add(compileCNOT(0, J, 'SWAP')); add(compileCNOT(1, J, 'SWAP')); add(compileCNOT(0, J, 'SWAP')); }
+      } else for (const q of [0, 1]) if (col.g[q]) add(compileGate(col.g[q], q));
+    });
+    return seq;
+  };
+
+  // ---- noise channels ----
+  const dephase = (R, q, f) => { for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) if (bit(a, q) !== bit(b, q)) { R.re[a * 4 + b] *= f; R.im[a * 4 + b] *= f; } };
+  const ampDamp = (R, q, gam) => {
+    const K0 = on(q, fromRows([[c(1), c(0)], [c(0), c(Math.sqrt(1 - gam))]]));
+    const K1 = on(q, fromRows([[c(0), c(Math.sqrt(gam))], [c(0), c(0)]]));
+    const A = sandwich(K0, R), B = sandwich(K1, R);
+    for (let i = 0; i < 16; i++) { R.re[i] = A.re[i] + B.re[i]; R.im[i] = A.im[i] + B.im[i]; }
+  };
+  const relax = (R, d, dev) => {
+    if (d <= 0) return;
+    for (const q of [0, 1]) {
+      const gam = 1 - Math.exp(-d / dev.T1);
+      ampDamp(R, q, gam);
+      dephase(R, q, Math.exp(-d / dev.T2s) / Math.sqrt(1 - gam));
+    }
+  };
+  const primU = (p, J, err) => {
+    if (p.k === 'pulse') return on(p.q, Rphi(p.th * (1 + (err ? err[p.q] : 0)), p.ph));
+    if (p.k === 'z') return on(p.q, G1.RZ(p.th));
+    if (p.k === 'J') return UJ(J, p.t);
+  };
+  const primDur = (p, dev) => (p.k === 'pulse' ? Math.abs(p.th) / (Math.PI / 2) * dev.t90[p.q] : p.k === 'J' ? p.t : 0);
+  const runSeq = (seq, dev, noisy) => {
+    let R = dmFromVec(ket0());
+    for (const p of seq) {
+      R = sandwich(primU(p, dev.J, noisy ? dev.err : null), R);
+      if (noisy) relax(R, primDur(p, dev), dev);
+    }
+    if (noisy && dev.spam) { for (let i = 0; i < 16; i++) { R.re[i] *= 1 - dev.spam; R.im[i] *= 1 - dev.spam; } for (let i = 0; i < 4; i++) R.re[i * 5] += dev.spam / 4; }
+    return R;
+  };
+  const seqDuration = (seq, dev) => seq.reduce((s, p) => s + primDur(p, dev), 0);
+
+  // ---- Pauli tomography with readout noise ----
+  const PAULI = [G1.I(), G1.X(), G1.Y(), G1.Z()];
+  const trMul = (A, B) => { let re = 0; for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) re += A.re[i * 4 + k] * B.re[k * 4 + i] - A.im[i * 4 + k] * B.im[k * 4 + i]; return re; };
+  const gauss = (rnd) => { let u = 0, v = 0; while (u === 0) u = rnd(); v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const tomography = (R, sigma, rnd = Math.random) => {
+    const out = M(4);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      const PP = kron(PAULI[i], PAULI[j]);
+      let cij = trMul(R, PP);
+      if (i + j > 0 && sigma > 0) cij += sigma * gauss(rnd);
+      if (i + j === 0) cij = 1;
+      for (let k = 0; k < 16; k++) { out.re[k] += cij * PP.re[k] / 4; out.im[k] += cij * PP.im[k] / 4; }
+    }
+    return out;
+  };
+  const fidelity = (R, v) => { // <v|R|v>
+    let re = 0; for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      const rr = R.re[i * 4 + j], ri = R.im[i * 4 + j];
+      // conj(v_i) * R_ij * v_j
+      const ar = v.re[i], ai = -v.im[i], br = v.re[j], bi = v.im[j];
+      const tr = ar * rr - ai * ri, ti = ar * ri + ai * rr; re += tr * br - ti * bi;
+    } return re; };
+  const reducedBloch = (R, q) => { // returns [x,y,z]
+    const ops = [G1.X(), G1.Y(), G1.Z()].map((g) => on(q, g));
+    return ops.map((O) => trMul(R, O));
+  };
+  // spectra: after Y90 readout on nucleus q, complex line amplitudes for partner state 0/1
+  const spectrumLines = (R, q) => {
+    const Rr = sandwich(on(q, G1.RY(Math.PI / 2)), R);
+    const lines = [];
+    for (const b of [0, 1]) {
+      const i0 = q === 0 ? (0 << 1) | b : (b << 1) | 0, i1 = q === 0 ? (1 << 1) | b : (b << 1) | 1;
+      lines.push({ partner: b, re: 2 * Rr.re[i0 * 4 + i1], im: 2 * Rr.im[i0 * 4 + i1] });
+    }
+    return lines;
+  };
+  const spectrumLinesDirect = (R, q) => {
+    const lines = [];
+    for (const b of [0, 1]) {
+      const i0 = q === 0 ? b : (b << 1), i1 = q === 0 ? 2 | b : (b << 1) | 1;
+      lines.push({ partner: b, re: 2 * R.re[i0 * 4 + i1], im: 2 * R.im[i0 * 4 + i1] });
+    }
+    return lines;
+  };
+  return { spectrumLinesDirect, M, eye, mul, dag, kron, G1, G2, UJ, on, colU, circuitU, states, dmFromVec, compile, runSeq, seqDuration, tomography, fidelity, reducedBloch, spectrumLines, primDur, ket0 };
+})();
+
+
+</script>
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const TAU = 2 * Math.PI;
+  const J_HZ = 697.4;
+  const fmt = (x, d = 2) => {
+    let v = Math.abs(x) < 0.5 * Math.pow(10, -d) ? 0 : x;
+    return v.toFixed(d).replace('.', ',').replace('-', '−');
+  };
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+  // ---------- theme colours ----------
+  let C = {};
+  const readColors = () => {
+    const s = getComputedStyle(document.documentElement);
+    const g = (n) => s.getPropertyValue(n).trim() || '#888';
+    C = { paper: g('--paper'), panel: g('--panel'), ink: g('--ink'), ink2: g('--ink-2'), grid: g('--grid'), grid2: g('--grid-strong'),
+      line: g('--line'), h: g('--h'), p: g('--p'), rf: g('--rf'), pos: g('--pos'), neg: g('--neg') };
+  };
+  readColors();
+  const redrawers = [];
+  const redrawAll = () => { readColors(); redrawers.forEach((f) => { try { f(); } catch (e) { /* ignore */ } }); };
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll); } catch (e) { /* old browsers */ }
+  try { new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class', 'style'] }); } catch (e) { /* ignore */ }
+
+  // ---------- canvas helpers ----------
+  const setup = (cv, forceW) => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect();
+    const w = Math.max(10, Math.round(forceW || r.width || cv.clientWidth || 300));
+    const h = Math.max(10, Math.round(r.height || cv.clientHeight || 200));
+    if (forceW) cv.style.width = w + 'px';
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w, h };
+  };
+  const paperGrid = (ctx, x, y, w, h, step = 10) => {
+    ctx.save();
+    ctx.fillStyle = C.panel; ctx.fillRect(x, y, w, h);
+    ctx.lineWidth = 1;
+    let i = 0;
+    for (let gx = x; gx <= x + w + 0.1; gx += step, i++) {
+      ctx.strokeStyle = i % 5 === 0 ? C.grid2 : C.grid;
+      ctx.beginPath(); ctx.moveTo(Math.round(gx) + 0.5, y); ctx.lineTo(Math.round(gx) + 0.5, y + h); ctx.stroke();
+    }
+    i = 0;
+    for (let gy = y; gy <= y + h + 0.1; gy += step, i++) {
+      ctx.strokeStyle = i % 5 === 0 ? C.grid2 : C.grid;
+      ctx.beginPath(); ctx.moveTo(x, Math.round(gy) + 0.5); ctx.lineTo(x + w, Math.round(gy) + 0.5); ctx.stroke();
+    }
+    ctx.restore();
+  };
+  const withAlpha = (col, a) => {
+    if (col.startsWith('#') && (col.length === 7)) {
+      const r = parseInt(col.slice(1, 3), 16), g = parseInt(col.slice(3, 5), 16), b = parseInt(col.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    return col;
+  };
+  const shade = (col, f) => { // f<1 darker, f>1 lighter
+    if (!(col.startsWith('#') && col.length === 7)) return col;
+    let r = parseInt(col.slice(1, 3), 16), g = parseInt(col.slice(3, 5), 16), b = parseInt(col.slice(5, 7), 16);
+    if (f < 1) { r *= f; g *= f; b *= f; } else { r += (255 - r) * (f - 1); g += (255 - g) * (f - 1); b += (255 - b) * (f - 1); }
+    return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+  };
+  const visible = new Map();
+  const io = ('IntersectionObserver' in window) ? new IntersectionObserver((ents) => ents.forEach((e) => visible.set(e.target, e.isIntersecting)), { rootMargin: '100px' }) : null;
+  const watch = (el) => { visible.set(el, true); if (io) io.observe(el); };
+  const isVis = (el) => visible.get(el) !== false;
+
+  // ---------- Bloch sphere drawing ----------
+  const project = (v, view, R, cx, cy) => {
+    const [x, y, z] = v;
+    const ca = Math.cos(view.az), sa = Math.sin(view.az), ce = Math.cos(view.el), se = Math.sin(view.el);
+    const x1 = x * ca - y * sa, y1 = x * sa + y * ca;
+    return { X: cx + R * x1, Y: cy - R * (z * ce + y1 * se), d: y1 * ce - z * se };
+  };
+  const arrow = (ctx, x0, y0, x1, y1, col, width, dash) => {
+    const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy);
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = width; ctx.lineCap = 'round';
+    ctx.setLineDash(dash || []);
+    if (L < 1) { ctx.beginPath(); ctx.arc(x0, y0, width, 0, TAU); ctx.fill(); ctx.setLineDash([]); return; }
+    const hl = Math.min(L * 0.35, 6 + width * 2.2);
+    const ux = dx / L, uy = dy / L;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - ux * hl * 0.6, y1 - uy * hl * 0.6); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - ux * hl - uy * hl * 0.45, y1 - uy * hl + ux * hl * 0.45);
+    ctx.lineTo(x1 - ux * hl + uy * hl * 0.45, y1 - uy * hl - ux * hl * 0.45);
+    ctx.closePath(); ctx.fill();
+  };
+  const drawBloch = (ctx, w, h, view, vectors, opts = {}) => {
+    ctx.clearRect(0, 0, w, h);
+    const R = Math.min(w, h) * (opts.scale || 0.36), cx = w / 2, cy = h / 2 + (opts.dy || 0);
+    // sphere
+    ctx.fillStyle = withAlpha(C.grid, 0.25); ctx.strokeStyle = C.line; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill(); ctx.stroke();
+    const ring = (fn, color, lw) => {
+      let prev = null;
+      for (let i = 0; i <= 120; i++) {
+        const a = (i / 120) * TAU, p = project(fn(a), view, R, cx, cy);
+        if (prev) {
+          const back = (p.d + prev.d) / 2 > 0;
+          ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.globalAlpha = back ? 0.35 : 0.9;
+          ctx.setLineDash(back ? [3, 4] : []);
+          ctx.beginPath(); ctx.moveTo(prev.X, prev.Y); ctx.lineTo(p.X, p.Y); ctx.stroke();
+        }
+        prev = p;
+      }
+      ctx.globalAlpha = 1; ctx.setLineDash([]);
+    };
+    ring((a) => [Math.cos(a), Math.sin(a), 0], C.ink2, 1.1);
+    ring((a) => [Math.cos(a), 0, Math.sin(a)], C.line, 1);
+    // axes
+    const axes = [[[1, 0, 0], 'x'], [[0, 1, 0], 'y'], [[0, 0, 1], 'z']];
+    ctx.font = `${Math.max(11, R * 0.09)}px Commissioner, system-ui, sans-serif`;
+    for (const [v, lab] of axes) {
+      const a = project(v.map((t) => -t), view, R, cx, cy), b = project(v.map((t) => t * 1.18), view, R, cx, cy);
+      ctx.strokeStyle = C.ink2; ctx.globalAlpha = 0.55; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.X, a.Y); ctx.lineTo(b.X, b.Y); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.fillStyle = C.ink2;
+      if (!(opts.poles && lab === 'z')) ctx.fillText(lab, b.X + 4, b.Y + 4);
+    }
+    if (opts.poles) {
+      const t = project([0, 0, 1.18], view, R, cx, cy), bm = project([0, 0, -1.18], view, R, cx, cy);
+      ctx.fillStyle = C.ink2; ctx.textAlign = 'center';
+      ctx.fillText('|0⟩', t.X, t.Y - 2); ctx.fillText('|1⟩', bm.X, bm.Y + 12); ctx.textAlign = 'left';
+    }
+    if (opts.b1) { // RF field axis during a pulse
+      const e = project(opts.b1, view, R, cx, cy);
+      arrow(ctx, cx, cy, e.X, e.Y, C.rf, 3, [6, 4]);
+      ctx.fillStyle = C.rf; ctx.fillText('B₁', e.X + 6, e.Y - 6);
+    }
+    const vs = vectors.map((vec) => ({ ...vec, tip: project(vec.v, view, R, cx, cy) }));
+    vs.sort((a, b) => b.tip.d - a.tip.d);
+    for (const vec of vs) {
+      ctx.globalAlpha = vec.alpha != null ? vec.alpha : 1;
+      arrow(ctx, cx, cy, vec.tip.X, vec.tip.Y, vec.color, vec.width || 2, vec.dash);
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  // =====================================================================
+  // HERO: chart recorder
+  // =====================================================================
+  const hero = (() => {
+    const cv = $('#heroCanvas'); watch(cv);
+    let vals = [], ticks = [], tHero = 0, last = null, noiseSeed = 1;
+    const rnd = () => { noiseSeed = (noiseSeed * 16807) % 2147483647; return noiseSeed / 2147483647 - 0.5; };
+    const PERIOD = 3.2, PXS = 70; // seconds per pulse cycle, pixels per second
+    const sig = (t) => {
+      const tc = t % PERIOD;
+      const n = Math.floor(t / PERIOD);
+      const amp = [1, 0.85, 1, 0.7][n % 4];
+      return amp * Math.exp(-tc / 0.75) * Math.cos(TAU * 3.1 * tc) + 0.03 * rnd();
+    };
+    const draw = () => {
+      const { ctx, w, h } = setup(cv);
+      paperGrid(ctx, 0, 0, w, h, 12);
+      const penX = Math.round(w * 0.82);
+      if (vals.length === 0) { // pre-fill
+        const n = penX; for (let i = 0; i < n; i++) { const t = (i - n) / PXS + 40; vals.push(sig(t)); ticks.push(((t % PERIOD) + PERIOD) % PERIOD < 1 / PXS); }
+        tHero = 40;
+      }
+      while (vals.length > penX) { vals.shift(); ticks.shift(); }
+      const mid = h * 0.52, A = h * 0.38;
+      ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      const off = penX - vals.length;
+      vals.forEach((v, i) => { const x = off + i, y = mid - v * A; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.stroke();
+      ctx.fillStyle = C.rf;
+      ticks.forEach((t, i) => { if (t) { ctx.fillRect(off + i - 1.5, 6, 3, 16); } });
+      // pen carriage
+      ctx.strokeStyle = C.ink2; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(penX + 0.5, 0); ctx.lineTo(penX + 0.5, h); ctx.stroke(); ctx.setLineDash([]);
+      const v = vals.length ? vals[vals.length - 1] : 0;
+      ctx.fillStyle = C.rf; ctx.beginPath(); ctx.arc(penX, mid - v * A, 4.5, 0, TAU); ctx.fill();
+      ctx.fillStyle = C.ink2; ctx.font = '12px Commissioner, system-ui, sans-serif';
+      ctx.fillText('χρόνος', 10, h - 10);
+    };
+    const step = (dt) => {
+      const n = Math.round(dt * PXS);
+      for (let i = 0; i < n; i++) {
+        const tPrev = tHero; tHero += 1 / PXS;
+        vals.push(sig(tHero));
+        ticks.push(Math.floor(tHero / PERIOD) !== Math.floor(tPrev / PERIOD));
+      }
+    };
+    redrawers.push(draw);
+    return { cv, draw, step };
+  })();
+
+  // =====================================================================
+  // PHYSICS: isochromat simulation with Bloch equations
+  // =====================================================================
+  const invNorm = (p) => { // Acklam approximation
+    const a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.357751867269, -30.66479806614716, 2.506628277459239];
+    const b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+    const c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+    const d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+    const pl = 0.02425;
+    if (p < pl) { const q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    if (p > 1 - pl) { const q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+    const q = p - 0.5, r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  };
+
+  const phys = (() => {
+    const cv = $('#blochCanvas'), scope = $('#scopeCanvas'), spec = $('#specCanvas');
+    watch(cv); watch(scope); watch(spec);
+    const N = 41, DT = 0.05; // ms sampling step
+    const BUF = 8192;
+    const S = {
+      params: { nuc: 'H', angle: 90, phase: 0, dv: 150, sigma: 8, T2: 150, T1: 3000, J: false, speed: 20, tau: 40, frame: 'rot' },
+      iso: [], t: 0, sub: 0, pulse: null, queue: [], waitUntil: null, paused: false,
+      view: { az: -0.65, el: 0.38 }, labAngle: 0,
+      bt: new Float64Array(BUF), bx: new Float32Array(BUF), by: new Float32Array(BUF), n: 0, head: 0,
+      acqStart: 0, events: [], specMode: 'fft', rabi: null, lastSpec: 0,
+    };
+    const base = []; const fam = [];
+    for (let i = 0; i < N; i++) { base.push(invNorm((i + 0.5) / N)); fam.push(i % 2 ? 1 : -1); }
+    // shuffle pairing so both J families sample the whole distribution
+    for (let i = 0; i < N; i++) S.iso.push({ g: base[i], f: fam[(i * 7) % N], m: [0, 0, 1] });
+    const nucColor = () => (S.params.nuc === 'H' ? C.h : C.p);
+    const t90 = () => (S.params.nuc === 'H' ? 40 : 60); // μs
+
+    const offset = (s) => S.params.dv + S.params.sigma * s.g + (S.params.J ? s.f * J_HZ / 2 : 0);
+    const net = () => { let x = 0, y = 0, z = 0; for (const s of S.iso) { x += s.m[0]; y += s.m[1]; z += s.m[2]; } return [x / N, y / N, z / N]; };
+    const record = () => {
+      const m = net();
+      S.bt[S.head] = S.t; S.bx[S.head] = m[0]; S.by[S.head] = m[1];
+      S.head = (S.head + 1) % BUF; S.n = Math.min(BUF, S.n + 1);
+    };
+    const free = (dt) => { // dt in ms
+      const p = S.params, e2 = Math.exp(-dt / p.T2), e1 = Math.exp(-dt / p.T1);
+      for (const s of S.iso) {
+        const a = TAU * offset(s) * dt / 1000, c = Math.cos(a), sn = Math.sin(a);
+        const [x, y, z] = s.m;
+        s.m = [(x * c - y * sn) * e2, (x * sn + y * c) * e2, 1 + (z - 1) * e1];
+      }
+    };
+    const rotateAll = (alpha, phiDeg) => {
+      const ph = phiDeg * Math.PI / 180, n = [Math.cos(ph), Math.sin(ph), 0];
+      const c = Math.cos(alpha), s = Math.sin(alpha);
+      for (const it of S.iso) {
+        const v = it.m, dot = n[0] * v[0] + n[1] * v[1];
+        const cr = [n[1] * v[2], -n[0] * v[2], n[0] * v[1] - n[1] * v[0]];
+        it.m = [v[0] * c + cr[0] * s + n[0] * dot * (1 - c), v[1] * c + cr[1] * s + n[1] * dot * (1 - c), v[2] * c + cr[2] * s];
+      }
+    };
+    const phaseName = (ph) => ({ 0: 'x', 90: 'y', 180: '−x', 270: '−y' }[ph] || '');
+    const startPulse = (angle, phase, acq = true) => {
+      if (angle <= 0) return;
+      S.pulse = { total: angle * Math.PI / 180, done: 0, phase, vis: reduceMotion ? 0.05 : clamp(0.32 * angle / 90, 0.25, 1.1), acq, label: `${angle}°${phaseName(phase)}` };
+    };
+    const reset = () => {
+      for (const s of S.iso) s.m = [0, 0, 1];
+      S.pulse = null; S.queue = []; S.waitUntil = null; S.events = []; S.n = 0; S.head = 0; S.acqStart = S.t;
+    };
+    const runEcho = () => {
+      reset();
+      const tau = S.params.tau;
+      S.queue = [{ k: 'pulse', a: 90, ph: 0, acq: true }, { k: 'wait', ms: tau }, { k: 'pulse', a: 180, ph: 90, acq: false }, { k: 'wait', ms: 2.5 * tau }];
+    };
+    const advance = (dtVis) => {
+      if (S.paused) return;
+      if (S.pulse) {
+        const pl = S.pulse; const d = Math.min(pl.total - pl.done, pl.total * dtVis / pl.vis);
+        rotateAll(d, pl.phase); pl.done += d;
+        if (pl.done >= pl.total - 1e-9) {
+          S.events.push({ t: S.t, label: pl.label });
+          if (pl.acq) S.acqStart = S.t;
+          S.pulse = null;
+        }
+        return;
+      }
+      if (!S.waitUntil && S.queue.length) {
+        const it = S.queue.shift();
+        if (it.k === 'pulse') { startPulse(it.a, it.ph, it.acq); return; }
+        if (it.k === 'wait') S.waitUntil = S.t + it.ms;
+      }
+      let dtSim = dtVis * S.params.speed; // ms
+      while (dtSim > 0) {
+        const st = Math.min(DT - S.sub, dtSim);
+        free(st); S.t += st; S.sub += st; dtSim -= st;
+        if (S.sub >= DT - 1e-9) { S.sub = 0; record(); }
+        if (S.waitUntil && S.t >= S.waitUntil) { S.waitUntil = null; break; }
+      }
+      if (S.params.frame === 'lab') S.labAngle += TAU * 0.45 * dtVis;
+    };
+
+    // ----- drawing -----
+    const legend = $('#stageLegend'), frameNote = $('#frameNote');
+    const drawStage = () => {
+      const { ctx, w, h } = setup(cv);
+      const col = nucColor();
+      const rot = S.params.frame === 'lab' ? S.labAngle : 0;
+      const rv = (v) => [v[0] * Math.cos(rot) - v[1] * Math.sin(rot), v[0] * Math.sin(rot) + v[1] * Math.cos(rot), v[2]];
+      const vecs = [];
+      const step = Math.max(1, Math.floor(N / 15));
+      for (let i = 0; i < N; i += step) {
+        const s = S.iso[i];
+        const c2 = S.params.J ? (s.f > 0 ? col : C.ink2) : col;
+        vecs.push({ v: rv(s.m), color: c2, width: 1.1, alpha: 0.55 });
+      }
+      vecs.push({ v: rv(net()), color: C.ink, width: 3.6 });
+      let b1 = null;
+      if (S.pulse) { const ph = S.pulse.phase * Math.PI / 180; b1 = rv([Math.cos(ph) * 1.05, Math.sin(ph) * 1.05, 0]); }
+      drawBloch(ctx, w, h, S.view, vecs, { b1, scale: 0.37 });
+      const m = net();
+      legend.innerHTML = `<span>M<sub>z</sub> = ${fmt(m[2])}</span><span>|M<sub>xy</sub>| = ${fmt(Math.hypot(m[0], m[1]))}</span><span>t = ${fmt(S.t, 1)} ms</span>`;
+      frameNote.textContent = S.params.frame === 'lab'
+        ? `Εργαστηριακό σύστημα: η μετάπτωση Larmor (${S.params.nuc === 'H' ? '27,7' : '11,2'} MHz) απεικονίζεται τεράστια επιβραδυμένη.`
+        : 'Περιστρεφόμενο σύστημα: περιστρέφεται μαζί με τον παλμό RF.';
+    };
+    const sampleAt = (k) => { const idx = (S.head - S.n + k + BUF) % BUF; return [S.bt[idx], S.bx[idx], S.by[idx]]; };
+    const drawScope = () => {
+      const { ctx, w, h } = setup(scope);
+      ctx.clearRect(0, 0, w, h);
+      const padL = 34, padB = 22, pw = w - padL - 8, ph = h - padB - 8;
+      paperGrid(ctx, padL, 8, pw, ph, 12);
+      const Wms = 150, t1 = Math.max(S.t, Wms), t0 = t1 - Wms;
+      const X = (t) => padL + (t - t0) / Wms * pw, mid = 8 + ph / 2, A = ph * 0.45;
+      ctx.fillStyle = C.ink2; ctx.font = '11px Commissioner, system-ui, sans-serif';
+      for (let tt = Math.ceil(t0 / 25) * 25; tt <= t1; tt += 25) { const x = X(tt); if (x < w - 26) ctx.fillText(`${Math.round(tt)}`, x - 8, h - 6); }
+      ctx.fillText('ms', w - 22, h - 6);
+      ctx.fillText('+1', 6, 8 + ph * 0.05 + 8); ctx.fillText('0', 14, mid + 4); ctx.fillText('−1', 6, 8 + ph * 0.95);
+      for (const ev of S.events) if (ev.t >= t0) {
+        ctx.fillStyle = withAlpha(C.rf, 0.9); ctx.fillRect(X(ev.t) - 1.5, 8, 3, ph);
+        ctx.fillStyle = C.ink; ctx.fillText(ev.label, X(ev.t) + 4, 20);
+      }
+      const col = nucColor();
+      const plotLine = (sel, color, lw, alpha) => {
+        ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.globalAlpha = alpha; ctx.beginPath();
+        let started = false;
+        for (let k = 0; k < S.n; k++) {
+          const s = sampleAt(k); if (s[0] < t0) continue;
+          const x = X(s[0]), y = mid - s[sel] * A;
+          if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke(); ctx.globalAlpha = 1;
+      };
+      plotLine(2, col, 1, 0.35);
+      plotLine(1, col, 1.6, 1);
+    };
+    // FFT (radix-2, in place)
+    const fft = (re, im) => {
+      const n = re.length;
+      for (let i = 1, j = 0; i < n; i++) { let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; } }
+      for (let len = 2; len <= n; len <<= 1) {
+        const ang = -TAU / len, wr = Math.cos(ang), wi = Math.sin(ang);
+        for (let i = 0; i < n; i += len) {
+          let cr = 1, ci = 0;
+          for (let k = 0; k < len / 2; k++) {
+            const a = i + k, b = a + len / 2;
+            const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+            re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+            const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+          }
+        }
+      }
+    };
+    const drawSpec = () => {
+      const { ctx, w, h } = setup(spec);
+      ctx.clearRect(0, 0, w, h);
+      const padL = 12, padB = 22, pw = w - padL - 12, ph = h - padB - 10;
+      paperGrid(ctx, padL, 10, pw, ph, 12);
+      ctx.font = '11px Commissioner, system-ui, sans-serif';
+      if (S.specMode === 'rabi') { drawRabi(ctx, w, h, padL, pw, ph, padB); return; }
+      const NF = 4096, re = new Float64Array(NF), im = new Float64Array(NF);
+      let cnt = 0;
+      for (let k = 0; k < S.n && cnt < NF; k++) { const s = sampleAt(k); if (s[0] < S.acqStart) continue; re[cnt] = s[1]; im[cnt] = s[2]; cnt++; }
+      const F = 1200; const X = (f) => padL + (f + F) / (2 * F) * pw;
+      ctx.fillStyle = C.ink2;
+      for (let f = -1000; f <= 1000; f += 500) { const x = X(f); if (x > 14 && x < w - 44) ctx.fillText(`${f}`.replace('-', '−'), x - 12, h - 6); }
+      ctx.fillText('Hz', w - 24, h - 6);
+      if (cnt < 40) { ctx.fillStyle = C.ink2; ctx.fillText('Εφαρμόστε έναν παλμό για να εμφανιστεί φάσμα.', padL + 10, 32); return; }
+      re[0] *= 0.5; im[0] *= 0.5;
+      fft(re, im);
+      const fs = 1000 / DT, pts = [];
+      let mx = 1e-9;
+      for (let k = 0; k < NF; k++) {
+        const f = (k < NF / 2 ? k : k - NF) * fs / NF; if (f < -F || f > F) continue;
+        const mag = Math.hypot(re[k], im[k]); pts.push([f, mag]); if (mag > mx) mx = mag;
+      }
+      pts.sort((a, b) => a[0] - b[0]);
+      const base = 10 + ph * 0.95, A = ph * 0.85;
+      ctx.strokeStyle = nucColor(); ctx.lineWidth = 1.6; ctx.beginPath();
+      pts.forEach((p, i) => { const x = X(p[0]), y = base - p[1] / mx * A; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.stroke();
+      if (S.params.J) {
+        ctx.fillStyle = C.ink; ctx.fillText('διπλέτα, απόσταση J', X(S.params.dv) - 52, 24);
+      }
+    };
+    const drawRabi = (ctx, w, h, padL, pw, ph, padB) => {
+      const T = t90(), tmax = 4 * T;
+      const X = (t) => padL + t / tmax * pw, mid = 10 + ph / 2, A = ph * 0.42;
+      ctx.fillStyle = C.ink2;
+      for (const [k, lab] of [[1, 'π/2'], [2, 'π'], [3, '3π/2'], [4, '2π']]) {
+        ctx.strokeStyle = C.grid2; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(X(k * T), 10); ctx.lineTo(X(k * T), 10 + ph); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillText(lab, X(k * T) - 10, 24);
+      }
+      for (let t = 0; t <= tmax; t += T) { const x = X(t); ctx.fillText(`${t} μs`, clamp(x - 14, 2, w - 44), h - 6); }
+      if (!S.rabi) { ctx.fillText('Πατήστε «Σάρωση Rabi».', padL + 10, 44); return; }
+      const pts = S.rabi.pts, shown = Math.floor(pts.length * S.rabi.prog);
+      ctx.strokeStyle = nucColor(); ctx.lineWidth = 1.8; ctx.beginPath();
+      for (let i = 0; i < shown; i++) { const x = X(pts[i][0]), y = mid - pts[i][1] * A; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+      ctx.stroke();
+    };
+    const startRabi = () => {
+      const T = t90(), pts = [];
+      for (let i = 0; i <= 220; i++) {
+        const t = 4 * T * i / 220; let s = 0;
+        for (let k = 0; k < 15; k++) { const f = 1 + 0.05 * invNorm((k + 0.5) / 15); s += Math.sin(Math.PI / 2 * t / T * f); }
+        pts.push([t, s / 15]);
+      }
+      S.rabi = { pts, prog: reduceMotion ? 1 : 0 };
+    };
+
+    // ----- controls -----
+    const bindSeg = (id, fn) => {
+      const seg = $(id);
+      seg.addEventListener('click', (e) => {
+        const b = e.target.closest('button'); if (!b) return;
+        $$('button', seg).forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+        fn(b.dataset.v);
+      });
+    };
+    bindSeg('#nucSeg', (v) => { S.params.nuc = v; if (S.specMode === 'rabi' && S.rabi) startRabi(); });
+    bindSeg('#phaseSeg', (v) => { S.params.phase = +v; });
+    bindSeg('#frameSeg', (v) => { S.params.frame = v; S.labAngle = 0; });
+    bindSeg('#specSeg', (v) => {
+      S.specMode = v;
+      $('#specTitle').textContent = v === 'fft' ? 'Φάσμα' : 'Ταλαντώσεις Rabi';
+      $('#specNote').innerHTML = v === 'fft'
+        ? 'Μετασχηματισμός Fourier του σήματος από τον τελευταίο παλμό και μετά.'
+        : 'Σήμα μετά από παλμό x μεταβλητής διάρκειας. <button class="btn small" type="button" id="rabiBtn">Σάρωση Rabi</button>';
+      const rb = $('#rabiBtn'); if (rb) rb.addEventListener('click', startRabi);
+      drawSpec();
+    });
+    const bindRange = (id, out, fn, show) => {
+      const el = $(id), o = $(out);
+      const upd = () => { fn(+el.value); o.textContent = show(+el.value); };
+      el.addEventListener('input', upd); upd();
+    };
+    const t2star = () => {
+      const s = S.params.sigma;
+      const inh = s > 0 ? Math.SQRT2 / (TAU * s) * 1000 : Infinity;
+      const tot = 1 / (1 / S.params.T2 + (isFinite(inh) ? 1 / inh : 0));
+      return tot;
+    };
+    bindRange('#angle', '#angleOut', (v) => { S.params.angle = v; }, (v) => `${v}°`);
+    bindRange('#dv', '#dvOut', (v) => { S.params.dv = v; }, (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)} Hz`);
+    bindRange('#sigma', '#sigmaOut', (v) => { S.params.sigma = v; }, (v) => `${v} Hz (T₂* ≈ ${Math.round(t2star())} ms)`);
+    bindRange('#t2', '#t2Out', (v) => { S.params.T2 = v; $('#sigmaOut').textContent = `${S.params.sigma} Hz (T₂* ≈ ${Math.round(t2star())} ms)`; }, (v) => `${v} ms`);
+    bindRange('#tau', '#tauOut', (v) => { S.params.tau = v; }, (v) => `${v} ms`);
+    bindRange('#speed', '#speedOut', (v) => { S.params.speed = v; }, (v) => `1 s ≙ ${v} ms`);
+    $('#jToggle').addEventListener('change', (e) => {
+      S.params.J = e.target.checked;
+      if (S.params.J && S.params.speed > 6) { $('#speed').value = 4; $('#speed').dispatchEvent(new Event('input')); }
+      $('#scopeNote').textContent = S.params.J
+        ? 'Με τη σύζευξη J οι δύο ομάδες spin συμβάλλουν: το σήμα παρουσιάζει διακροτήματα και το φάσμα γίνεται διπλέτα. Η ταχύτητα μειώθηκε για να φαίνεται η κίνηση.'
+        : 'Ο χρόνος μετριέται σε ms από την έναρξη.';
+    });
+    $('#pulseBtn').addEventListener('click', () => { if (!S.pulse) { S.queue = []; S.waitUntil = null; startPulse(S.params.angle, S.params.phase, true); } });
+    $('#resetBtn').addEventListener('click', reset);
+    $('#echoBtn').addEventListener('click', runEcho);
+    $('#pauseBtn').addEventListener('click', (e) => { S.paused = !S.paused; e.currentTarget.textContent = S.paused ? 'Συνέχεια' : 'Παύση'; e.currentTarget.setAttribute('aria-pressed', String(S.paused)); });
+    // drag to rotate
+    let drag = null;
+    cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, az: S.view.az, el: S.view.el }; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; });
+    cv.addEventListener('pointermove', (e) => { if (!drag) return; S.view.az = drag.az - (e.clientX - drag.x) * 0.01; S.view.el = clamp(drag.el + (e.clientY - drag.y) * 0.01, -1.2, 1.2); if (S.paused) drawStage(); });
+    const endDrag = () => { drag = null; cv.style.cursor = 'grab'; };
+    cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+
+    let specClock = 0;
+    const simPage = $('#sim');
+    const frame = (dtVis) => {
+      if (simPage.hidden) return;
+      advance(dtVis);
+      if (isVis(cv)) drawStage();
+      if (isVis(scope)) drawScope();
+      specClock += dtVis;
+      if (S.specMode === 'rabi' && S.rabi && S.rabi.prog < 1) { S.rabi.prog = Math.min(1, S.rabi.prog + dtVis / 1.8); if (isVis(spec)) drawSpec(); }
+      else if (specClock > 0.3 && isVis(spec)) { specClock = 0; drawSpec(); }
+    };
+    redrawers.push(() => { drawStage(); drawScope(); drawSpec(); });
+    let shown = false;
+    const onShow = () => { if (!shown) { shown = true; startPulse(90, 0, true); } };
+    return { frame, S, onShow };
+  })();
+
+  // =====================================================================
+  // COMPOSER
+  // =====================================================================
+  const composer = (() => {
+    const NCOL = 12, X0 = 92, CW = 58, ROWY = [52, 118], H = 170, W = X0 + NCOL * CW + 70;
+    const GATES = {
+      H: { label: 'H', cat: 'h' }, X: { label: 'X', cat: 'pauli' }, Y: { label: 'Y', cat: 'pauli' }, Z: { label: 'Z', cat: 'pauli' },
+      S: { label: 'S', cat: 'phase' }, T: { label: 'T', cat: 'phase' },
+      RX: { label: 'Rx', cat: 'rot', param: true }, RY: { label: 'Ry', cat: 'rot', param: true }, RZ: { label: 'Rz', cat: 'rot', param: true },
+      CNOT: { label: 'CNOT', cat: 'two', two: true }, CZ: { label: 'CZ', cat: 'two', two: true }, SWAP: { label: 'SWAP', cat: 'two', two: true },
+    };
+    const DEVICES = {
+      mini: { name: 'Gemini Mini', J: J_HZ, T1: 3, T2s: 0.03, t90: [40e-6, 60e-6], err: [0.015, -0.012], spam: 0.165 },
+      pro: { name: 'Gemini Mini Pro', J: J_HZ, T1: 5, T2s: 0.05, t90: [40e-6, 60e-6], err: [0.008, -0.0064], spam: 0.12 },
+    };
+    const emptyCols = () => Array.from({ length: NCOL }, () => ({ g: [null, null], two: null }));
+    let cols = emptyCols();
+    let armed = null, step = 0, result = null, readout = 'y90', busy = false;
+    const svg = $('#circuit'), wrap = $('#circuitWrap'), pop = $('#popover');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+    // ----- examples -----
+    const g = (name, theta) => ({ name, theta });
+    const C1 = (a, b) => ({ g: [a || null, b || null], two: null });
+    const C2 = (name, ctrl = 0) => ({ g: [null, null], two: { name, ctrl } });
+    const groverCols = (t) => {
+      const xs = [t[0] === '0', t[1] === '0'], mark = xs[0] || xs[1];
+      const out = [C1(g('H'), g('H'))];
+      if (mark) out.push(C1(xs[0] ? g('X') : null, xs[1] ? g('X') : null));
+      out.push(C2('CZ'));
+      if (mark) out.push(C1(xs[0] ? g('X') : null, xs[1] ? g('X') : null));
+      out.push(C1(g('H'), g('H')), C1(g('X'), g('X')), C2('CZ'), C1(g('X'), g('X')), C1(g('H'), g('H')));
+      return out;
+    };
+    const deutschCols = (f) => {
+      const out = [C1(null, g('X')), C1(g('H'), g('H'))];
+      if (f === '1') out.push(C1(null, g('X')));
+      if (f === 'x') out.push(C2('CNOT', 0));
+      if (f === '1-x') { out.push(C2('CNOT', 0)); out.push(C1(null, g('X'))); }
+      out.push(C1(g('H'), g('H')));
+      return out;
+    };
+    const DEUTSCH_TXT = 'Αλγόριθμος Deutsch: με μία μόνο κλήση του μαντείου U<sub>f</sub>, το Q0 καταλήγει σε 0 αν η συνάρτηση είναι σταθερή και σε 1 αν είναι ισορροπημένη. Η τιμή της f «επιστρέφει» ως φάση στο Q0 (phase kickback). Η τελική Hadamard στο Q1 το φέρνει στην |1⟩, ώστε το αποτέλεσμα να είναι μία μόνο κατάσταση.';
+    const GROVER_TXT = 'Αναζήτηση Grover σε τέσσερα στοιχεία: το μαντείο (CZ, με πύλες X γύρω της όταν ο στόχος περιέχει 0) αλλάζει το πρόσημο του πλάτους του στόχου και η διάχυση αναστρέφει τα πλάτη ως προς τη μέση τιμή τους. Για N = 4 αρκεί μία επανάληψη για να βρεθεί ο στόχος με βεβαιότητα.';
+    const EXAMPLES = [
+      { id: 'bell', name: 'Κατάσταση Bell |Φ⁺⟩', cols: [C1(g('H')), C2('CNOT', 0)], txt: 'Η Hadamard στο Q0 και η CNOT δημιουργούν την κατάσταση (|00⟩ + |11⟩)/√2. Στον πίνακα πυκνότητας προσέξτε τα γωνιακά στοιχεία ρ<sub>00,11</sub>: αυτά ξεχωρίζουν την κβαντική κατάσταση από ένα κλασικό μείγμα με τις ίδιες πιθανότητες. Τα διανύσματα Bloch των δύο qubits μηδενίζονται, γιατί κανένα qubit χωριστά δεν έχει καθορισμένη κατάσταση.' },
+      { id: 'sup', name: 'Υπέρθεση', cols: [C1(g('H'))], txt: 'Η πύλη Hadamard στρέφει το διάνυσμα Bloch του ¹H από τον πόλο στον ισημερινό. Οι πιθανότητες γίνονται 50% και 50%. Στα φάσματα, με παλμό ανάγνωσης, η γραμμή του ¹H εξαφανίζεται. Χωρίς παλμό εμφανίζεται, γιατί η μαγνήτιση βρίσκεται ήδη στο εγκάρσιο επίπεδο.' },
+      { id: 'd0', name: 'Deutsch, σταθερή f(x) = 0', cols: deutschCols('0'), txt: DEUTSCH_TXT },
+      { id: 'd1', name: 'Deutsch, σταθερή f(x) = 1', cols: deutschCols('1'), txt: DEUTSCH_TXT },
+      { id: 'dx', name: 'Deutsch, ισορροπημένη f(x) = x', cols: deutschCols('x'), txt: DEUTSCH_TXT },
+      { id: 'dnx', name: 'Deutsch, ισορροπημένη f(x) = 1 − x', cols: deutschCols('1-x'), txt: DEUTSCH_TXT },
+      { id: 'g00', name: 'Grover, στόχος |00⟩', cols: groverCols('00'), txt: GROVER_TXT },
+      { id: 'g01', name: 'Grover, στόχος |01⟩', cols: groverCols('01'), txt: GROVER_TXT },
+      { id: 'g10', name: 'Grover, στόχος |10⟩', cols: groverCols('10'), txt: GROVER_TXT },
+      { id: 'g11', name: 'Grover, στόχος |11⟩', cols: groverCols('11'), txt: GROVER_TXT },
+      { id: 'swap', name: 'Ανταλλαγή (SWAP)', cols: [C1(g('X')), C2('SWAP')], txt: 'Η πύλη X φέρνει το Q0 στην |1⟩ και η SWAP ανταλλάσσει τις καταστάσεις των δύο qubits. Στο NMR η SWAP υλοποιείται με τρεις CNOT: δείτε πόσο μεγαλώνει η ακολουθία παλμών και πόσο πέφτει η πιστότητα.' },
+      { id: 'empty', name: 'Κενό κύκλωμα', cols: [], txt: 'Ξεκινήστε από την κατάσταση |00⟩ και προσθέστε τις δικές σας πύλες.' },
+    ];
+    const sel = $('#exampleSel');
+    EXAMPLES.forEach((e) => { const o = document.createElement('option'); o.value = e.id; o.textContent = e.name; sel.appendChild(o); });
+    { const o = document.createElement('option'); o.value = 'custom'; o.textContent = 'Δικό σας κύκλωμα'; sel.appendChild(o); }
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const loadExample = (id) => {
+      const ex = EXAMPLES.find((e) => e.id === id) || EXAMPLES[0];
+      cols = emptyCols(); ex.cols.forEach((c, i) => { if (i < NCOL) cols[i] = clone(c); });
+      $('#explain p').innerHTML = ex.txt;
+      changed(true);
+    };
+
+    // ----- palette -----
+    const pal = $('#palette');
+    const addChip = (name) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.dataset.gate = name; b.dataset.cat = GATES[name].cat; b.textContent = GATES[name].label;
+      b.draggable = true; b.setAttribute('aria-pressed', 'false');
+      b.title = GATES[name].two ? `${GATES[name].label}: πύλη δύο qubits` : `${GATES[name].label}: πύλη ενός qubit`;
+      b.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', name); e.dataTransfer.effectAllowed = 'copy'; });
+      b.addEventListener('click', () => { armed = armed === name ? null : name; $$('.chip', pal).forEach((c) => c.setAttribute('aria-pressed', c.dataset.gate === armed ? 'true' : 'false')); });
+      pal.appendChild(b);
+    };
+    ['H', 'X', 'Y', 'Z', 'S', 'T'].forEach(addChip);
+    pal.appendChild(Object.assign(document.createElement('span'), { className: 'sep' }));
+    ['RX', 'RY', 'RZ'].forEach(addChip);
+    pal.appendChild(Object.assign(document.createElement('span'), { className: 'sep' }));
+    ['CNOT', 'CZ', 'SWAP'].forEach(addChip);
+    const hint = document.createElement('span'); hint.className = 'muted'; hint.style.fontSize = '.86rem'; hint.style.marginLeft = '6px';
+    hint.textContent = 'Σύρετε ή πατήστε μια πύλη και μετά μια θέση.'; pal.appendChild(hint);
+
+    // ----- circuit SVG -----
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const lastUsed = () => { let k = -1; cols.forEach((c, i) => { if (c.two || c.g[0] || c.g[1]) k = i; }); return k; };
+    const deg = (th) => Math.round(th * 180 / Math.PI);
+    const render = () => {
+      const cx = (c) => X0 + c * CW + CW / 2;
+      let s = '';
+      const n = lastUsed();
+      if (step > 0 && step <= n + 1) s += `<rect class="stepband" x="${X0}" y="14" width="${step * CW}" height="${H - 28}" rx="6"></rect>`;
+      // wires
+      ROWY.forEach((y, q) => {
+        s += `<line x1="${X0 - 10}" y1="${y}" x2="${W - 18}" y2="${y}" stroke="${q === 0 ? C.h : C.p}" stroke-width="1.6"></line>`;
+        s += `<text x="8" y="${y - 4}" font-size="15" font-weight="600">Q${q}</text>`;
+        s += `<text x="8" y="${y + 14}" font-size="12" style="fill:${q === 0 ? C.h : C.p}">${q === 0 ? '¹H' : '³¹P'}</text>`;
+        s += `<text x="${X0 - 34}" y="${y + 5}" font-size="14">|0⟩</text>`;
+        // measurement
+        const mx = W - 50;
+        s += `<rect x="${mx}" y="${y - 15}" width="32" height="30" rx="4" fill="${C.panel}" stroke="${C.ink2}"></rect>`;
+        s += `<path d="M ${mx + 6} ${y + 7} A 10 10 0 0 1 ${mx + 26} ${y + 7}" fill="none" stroke="${C.ink}" stroke-width="1.3"></path>`;
+        s += `<line x1="${mx + 16}" y1="${y + 7}" x2="${mx + 24}" y2="${y - 9}" stroke="${C.ink}" stroke-width="1.3"></line>`;
+      });
+      // column numbers
+      for (let c = 0; c < NCOL; c++) s += `<text x="${cx(c)}" y="${H - 6}" font-size="10" text-anchor="middle" style="fill:${C.ink2}">${c + 1}</text>`;
+      // hit cells
+      for (let c = 0; c < NCOL; c++) for (let q = 0; q < 2; q++) s += `<rect class="cell" data-c="${c}" data-q="${q}" x="${cx(c) - CW / 2 + 2}" y="${ROWY[q] - 28}" width="${CW - 4}" height="56" rx="6"></rect>`;
+      // gates
+      const catFill = { h: 'var(--g-h)', pauli: 'var(--g-pauli)', phase: 'var(--g-phase)', rot: 'var(--g-rot)' };
+      cols.forEach((col, c) => {
+        const x = cx(c);
+        if (col.two) {
+          const t = col.two, [y0, y1] = ROWY;
+          s += `<g class="placed" data-c="${c}" data-q="${t.ctrl}">`;
+          s += `<rect x="${x - 20}" y="${y0 - 22}" width="40" height="${y1 - y0 + 44}" fill="transparent"></rect>`;
+          s += `<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="${C.ink}" stroke-width="1.8"></line>`;
+          if (t.name === 'CNOT') {
+            const yc = ROWY[t.ctrl], yt = ROWY[1 - t.ctrl];
+            s += `<circle cx="${x}" cy="${yc}" r="6" fill="${C.ink}"></circle>`;
+            s += `<circle cx="${x}" cy="${yt}" r="13" fill="${C.panel}" stroke="${C.ink}" stroke-width="1.8"></circle>`;
+            s += `<line x1="${x - 13}" y1="${yt}" x2="${x + 13}" y2="${yt}" stroke="${C.ink}" stroke-width="1.8"></line><line x1="${x}" y1="${yt - 13}" x2="${x}" y2="${yt + 13}" stroke="${C.ink}" stroke-width="1.8"></line>`;
+          } else if (t.name === 'CZ') {
+            ROWY.forEach((y) => { s += `<circle cx="${x}" cy="${y}" r="6" fill="${C.ink}"></circle>`; });
+          } else {
+            ROWY.forEach((y) => { s += `<path d="M ${x - 8} ${y - 8} L ${x + 8} ${y + 8} M ${x + 8} ${y - 8} L ${x - 8} ${y + 8}" stroke="${C.ink}" stroke-width="2"></path>`; });
+          }
+          s += '</g>';
+        } else {
+          col.g.forEach((gt, q) => {
+            if (!gt) return;
+            const y = ROWY[q], info = GATES[gt.name];
+            s += `<g class="placed" data-c="${c}" data-q="${q}">`;
+            s += `<rect class="gate-rect" x="${x - 20}" y="${y - 20}" width="40" height="40" rx="6" style="fill:${catFill[info.cat]}"></rect>`;
+            if (info.param) {
+              s += `<text x="${x}" y="${y - 1}" font-size="14" font-weight="600" text-anchor="middle">${info.label}</text>`;
+              s += `<text x="${x}" y="${y + 13}" font-size="10" text-anchor="middle">${deg(gt.theta)}°</text>`;
+            } else s += `<text x="${x}" y="${y + 6}" font-size="17" font-weight="600" text-anchor="middle">${esc(info.label)}</text>`;
+            s += '</g>';
+          });
+        }
+      });
+      svg.innerHTML = s;
+    };
+    const cellFromEvent = (e) => {
+      const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+      const m = svg.getScreenCTM(); if (!m) return null;
+      const p = pt.matrixTransform(m.inverse());
+      const c = Math.floor((p.x - X0) / CW); if (c < 0 || c >= NCOL) return null;
+      const q = Math.abs(p.y - ROWY[0]) < Math.abs(p.y - ROWY[1]) ? 0 : 1;
+      if (Math.abs(p.y - ROWY[q]) > 34) return null;
+      return { c, q };
+    };
+    const place = (name, c, q) => {
+      const info = GATES[name]; if (!info) return;
+      if (info.two) cols[c] = { g: [null, null], two: { name, ctrl: q } };
+      else { if (cols[c].two) cols[c] = { g: [null, null], two: null }; cols[c].g[q] = { name, theta: info.param ? Math.PI / 2 : undefined }; }
+      sel.value = 'custom'; $('#explain p').textContent = 'Δικό σας κύκλωμα. Πατήστε «Εκτέλεση σε NMR» για να το τρέξετε στην προσομοιωμένη συσκευή.';
+      changed(false);
+      if (info.param) openPop(c, q);
+    };
+    svg.addEventListener('dragover', (e) => { e.preventDefault(); const cq = cellFromEvent(e); hot(cq); });
+    svg.addEventListener('dragleave', () => hot(null));
+    svg.addEventListener('drop', (e) => { e.preventDefault(); hot(null); const name = e.dataTransfer.getData('text/plain'); const cq = cellFromEvent(e); if (cq && name) place(name, cq.c, cq.q); });
+    svg.addEventListener('pointermove', (e) => { if (armed) hot(cellFromEvent(e)); });
+    svg.addEventListener('pointerleave', () => hot(null));
+    const hot = (cq) => { $$('.cell', svg).forEach((r) => r.classList.toggle('hot', !!cq && +r.dataset.c === cq.c && (+r.dataset.q === cq.q || !!(armed && GATES[armed].two)))); };
+    svg.addEventListener('click', (e) => {
+      const pg = e.target.closest('.placed');
+      if (pg && !armed) { openPop(+pg.dataset.c, +pg.dataset.q); return; }
+      const cq = cellFromEvent(e);
+      if (cq && armed) { place(armed, cq.c, cq.q); return; }
+      if (pg) openPop(+pg.dataset.c, +pg.dataset.q);
+    });
+
+    // ----- popover -----
+    const closePop = () => { pop.hidden = true; pop.innerHTML = ''; };
+    const openPop = (c, q) => {
+      const col = cols[c]; const isTwo = !!col.two; const gt = isTwo ? col.two : col.g[q]; if (!gt) return;
+      const info = GATES[gt.name];
+      let html = `<div class="title">${info.label}${isTwo ? '' : ` στο Q${q}`}, στήλη ${c + 1}</div>`;
+      if (info.param) {
+        html += `<label class="inline">Γωνία <input type="number" id="popAngle" step="5" value="${deg(gt.theta)}"> °</label>`;
+        html += '<div class="inline">' + [45, 90, 180, -90].map((a) => `<button type="button" class="btn small" data-a="${a}">${a < 0 ? '−' + Math.abs(a) : a}°</button>`).join('') + '</div>';
+      }
+      if (isTwo && gt.name === 'CNOT') html += '<button type="button" class="btn small" id="popFlip">Αντιστροφή ελέγχου και στόχου</button>';
+      html += '<div class="inline"><button type="button" class="btn small" id="popDel">Διαγραφή</button><button type="button" class="btn small" id="popClose">Κλείσιμο</button></div>';
+      pop.innerHTML = html; pop.hidden = false;
+      // position
+      const m = svg.getScreenCTM(), wr = wrap.getBoundingClientRect();
+      const x = X0 + c * CW + CW / 2, y = isTwo ? ROWY[1] : ROWY[q];
+      let left = 10, top = 10;
+      if (m) { left = m.a * x + m.e - wr.left + wrap.scrollLeft + 24; top = m.d * y + m.f - wr.top + 10; }
+      left = clamp(left, 6, Math.max(6, wrap.scrollWidth - 240)); pop.style.left = left + 'px'; pop.style.top = top + 'px';
+      const setA = (a) => { gt.theta = a * Math.PI / 180; changed(false); const inp = $('#popAngle'); if (inp) inp.value = a; };
+      const inp = $('#popAngle', pop);
+      if (inp) { inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (!isNaN(v)) { gt.theta = v * Math.PI / 180; changed(false); } }); inp.focus(); }
+      $$('[data-a]', pop).forEach((b) => b.addEventListener('click', () => setA(+b.dataset.a)));
+      const fl = $('#popFlip', pop); if (fl) fl.addEventListener('click', () => { gt.ctrl = 1 - gt.ctrl; changed(false); });
+      $('#popDel', pop).addEventListener('click', () => { if (isTwo) cols[c] = { g: [null, null], two: null }; else col.g[q] = null; closePop(); changed(false); });
+      $('#popClose', pop).addEventListener('click', () => { closePop(); });
+    };
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closePop(); armed = null; $$('.chip', pal).forEach((c) => c.setAttribute('aria-pressed', 'false')); hot(null); } });
+    document.addEventListener('pointerdown', (e) => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.placed')) closePop(); });
+
+    // ----- state views -----
+    const bq = [$('#bq0'), $('#bq1')]; bq.forEach(watch);
+    const bview = { az: -0.6, el: 0.35 };
+    let anim = { from: [[0, 0, 1], [0, 0, 1]], to: [[0, 0, 1], [0, 0, 1]], t: 1 };
+    const statesIdeal = () => QE.states(cols.slice(0, Math.max(0, lastUsed() + 1)));
+    const ketText = (v) => {
+      // remove global phase: make first significant amplitude real positive
+      let k = -1; for (let i = 0; i < 4; i++) if (Math.hypot(v.re[i], v.im[i]) > 1e-6) { k = i; break; }
+      const ph = k >= 0 ? Math.atan2(v.im[k], v.re[k]) : 0, cr = Math.cos(-ph), ci = Math.sin(-ph);
+      const labels = ['00', '01', '10', '11']; const parts = [];
+      for (let i = 0; i < 4; i++) {
+        const re = v.re[i] * cr - v.im[i] * ci, im = v.re[i] * ci + v.im[i] * cr;
+        if (Math.hypot(re, im) < 1e-6) continue;
+        let coef;
+        if (Math.abs(im) < 1e-6) coef = fmt(Math.abs(re), 3);
+        else if (Math.abs(re) < 1e-6) coef = fmt(Math.abs(im), 3) + 'i';
+        else coef = `(${fmt(re, 3)} ${im < 0 ? '−' : '+'} ${fmt(Math.abs(im), 3)}i)`;
+        const neg = Math.abs(im) < 1e-6 ? re < 0 : (Math.abs(re) < 1e-6 ? im < 0 : false);
+        parts.push({ neg, s: `${coef}|${labels[i]}⟩` });
+      }
+      return parts.map((p, i) => (i === 0 ? (p.neg ? '−' : '') : (p.neg ? ' − ' : ' + ')) + p.s).join('') || '0';
+    };
+    const drawStateSpheres = () => {
+      const t = anim.t, e = t < 1 ? 1 - Math.pow(1 - t, 3) : 1;
+      bq.forEach((cv, q) => {
+        const { ctx, w, h } = setup(cv);
+        const a = anim.from[q], b = anim.to[q];
+        const v = [0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * e);
+        const vecs = [{ v, color: q === 0 ? C.h : C.p, width: 3 }];
+        if (result && result.kind === 'nmr' && step === result.steps) vecs.push({ v: result.bloch[q], color: C.ink2, width: 2, dash: [4, 3] });
+        drawBloch(ctx, w, h, bview, vecs, { poles: true, scale: 0.34, dy: 4 });
+      });
+    };
+    const showStep = (k, animate = true) => {
+      const sts = statesIdeal(); const n = sts.length - 1;
+      step = clamp(k, 0, n);
+      const v = sts[step], R = QE.dmFromVec(v);
+      const to = [QE.reducedBloch(R, 0), QE.reducedBloch(R, 1)];
+      const cur = anim.t >= 1 ? anim.to : anim.from.map((a, q) => a.map((x, i) => x + (anim.to[q][i] - x) * anim.t));
+      anim = { from: cur, to, t: animate && !reduceMotion ? 0 : 1 };
+      $('#ketOut').textContent = `|ψ⟩ = ${ketText(v)}`;
+      const conc = 2 * Math.hypot(v.re[0] * v.re[3] - v.im[0] * v.im[3] - (v.re[1] * v.re[2] - v.im[1] * v.im[2]), v.re[0] * v.im[3] + v.im[0] * v.re[3] - (v.re[1] * v.im[2] + v.im[1] * v.re[2]));
+      $('#stateFacts').innerHTML = `<span>|r<sub>Q0</sub>| = <b>${fmt(Math.hypot(...to[0]))}</b></span><span>|r<sub>Q1</sub>| = <b>${fmt(Math.hypot(...to[1]))}</b></span><span>Διεμπλοκή 2|α<sub>00</sub>α<sub>11</sub> − α<sub>01</sub>α<sub>10</sub>| = <b>${fmt(conc)}</b></span>`;
+      const rng = $('#stepRange'); rng.max = String(n); rng.value = String(step);
+      $('#stepOut').textContent = n === 0 ? 'αρχική κατάσταση' : `βήμα ${step} από ${n}`;
+      render(); drawStateSpheres();
+    };
+    $('#stepRange').addEventListener('input', (e) => showStep(+e.target.value));
+    $('#stepPrev').addEventListener('click', () => showStep(step - 1));
+    $('#stepNext').addEventListener('click', () => showStep(step + 1));
+
+    // ----- result plots -----
+    const probCv = $('#probCanvas'), dmRe = $('#dmRe'), dmIm = $('#dmIm'), nmrCv = $('#nmrCanvas'), seqCv = $('#seqCanvas');
+    const LAB = ['|00⟩', '|01⟩', '|10⟩', '|11⟩'];
+    const drawProbs = () => {
+      const { ctx, w, h } = setup(probCv);
+      ctx.clearRect(0, 0, w, h);
+      const padL = 34, padB = 26, pw = w - padL - 10, ph = h - padB - 14;
+      paperGrid(ctx, padL, 14, pw, ph, 12);
+      ctx.font = '11px Commissioner, system-ui, sans-serif'; ctx.fillStyle = C.ink2;
+      for (const v of [0, 0.5, 1]) ctx.fillText(fmt(v, 1), 4, 14 + ph * (1 - v) + 4);
+      if (!result) return;
+      const gw = pw / 4, Y = (v) => 14 + ph * (1 - clamp(v, 0, 1));
+      for (let i = 0; i < 4; i++) {
+        const x0 = padL + i * gw + gw * 0.18, bw = gw * 0.64;
+        const pi = result.pIdeal[i], pm = result.pMeas ? result.pMeas[i] : null;
+        if (pm != null) {
+          ctx.fillStyle = C.pos; ctx.fillRect(x0 + bw * 0.12, Y(pm), bw * 0.76, 14 + ph - Y(pm));
+        }
+        ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+        ctx.strokeRect(x0, Y(pi), bw, 14 + ph - Y(pi)); ctx.setLineDash([]);
+        ctx.fillStyle = C.ink; ctx.font = '12px Commissioner, system-ui, sans-serif'; ctx.textAlign = 'center';
+        const lab = pm != null ? fmt(pm) : fmt(pi);
+        ctx.fillText(lab, x0 + bw / 2, Math.max(26, Math.min(Y(pm != null ? pm : pi), Y(pi)) - 5));
+        ctx.font = '13px Literata, Georgia, serif'; ctx.fillText(LAB[i], x0 + bw / 2, h - 7); ctx.textAlign = 'left';
+      }
+      $('#probLegend').textContent = result.pMeas ? 'διακεκομμένο: ιδανικό, γεμάτο: προσομοίωση NMR' : 'ιδανική προσομοίωση';
+    };
+    const dmScale = () => {
+      let pos = 0, neg = 0;
+      for (let k = 0; k < 16; k++) for (const v of [result.R.re[k], result.R.im[k]]) { pos = Math.max(pos, v); neg = Math.max(neg, -v); }
+      return { pos, neg };
+    };
+    const drawDM = (cv, getter, title) => {
+      const { ctx, w, h } = setup(cv);
+      ctx.clearRect(0, 0, w, h);
+      ctx.font = '13px Literata, Georgia, serif'; ctx.fillStyle = C.ink; ctx.fillText(title, 12, 20);
+      if (!result) return;
+      const sc = dmScale();
+      const s = Math.min(w / 7.4, (h - 40) / 6.2), ox = w / 2;
+      const zs = (h - 40 - 4 * s) / Math.max(0.5, sc.pos + sc.neg), oy = 30 + sc.pos * zs;
+      const P = (i, j, z) => [ox + (i - j) * s * 0.866, oy + (i + j) * s * 0.5 - z * zs];
+      // floor
+      ctx.strokeStyle = C.grid2; ctx.lineWidth = 1;
+      for (let k = 0; k <= 4; k++) {
+        let a = P(k, 0, 0), b = P(k, 4, 0); ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+        a = P(0, k, 0); b = P(4, k, 0); ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+      }
+      ctx.font = '10px Commissioner, system-ui, sans-serif'; ctx.fillStyle = C.ink2;
+      const lb = ['00', '01', '10', '11'];
+      for (let k = 0; k < 4; k++) { const a = P(k + 0.5, 4.3, 0); ctx.fillText(lb[k], a[0] - 16, a[1] + 8); const b = P(4.3, k + 0.5, 0); ctx.fillText(lb[k], b[0] + 4, b[1] + 8); }
+      const la = P(1.2, 5.2, 0), lb2 = P(5.1, 1.3, 0);
+      ctx.fillStyle = C.ink2; ctx.fillText('στήλη', la[0] - 30, la[1] + 8); ctx.fillText('γραμμή', lb2[0] + 2, lb2[1] + 8);
+      const bars = [];
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) bars.push({ i: c, j: r, v: getter(r, c) });
+      bars.sort((a, b) => (a.i + a.j) - (b.i + b.j));
+      const hb = 0.32;
+      for (const bar of bars) {
+        const v = bar.v; if (Math.abs(v) < 0.004) continue;
+        const col = v >= 0 ? C.pos : C.neg;
+        const z0 = Math.min(0, v), z1 = Math.max(0, v);
+        const cx = bar.i + 0.5, cy = bar.j + 0.5;
+        const A = [cx - hb, cy - hb], B = [cx + hb, cy - hb], Cc = [cx + hb, cy + hb], D = [cx - hb, cy + hb];
+        const poly = (pts, fill) => { ctx.fillStyle = fill; ctx.beginPath(); pts.forEach((p, k) => { const q = P(p[0], p[1], p[2]); if (k === 0) ctx.moveTo(...q); else ctx.lineTo(...q); }); ctx.closePath(); ctx.fill(); ctx.strokeStyle = withAlpha(C.ink, 0.25); ctx.stroke(); };
+        poly([[B[0], B[1], z0], [Cc[0], Cc[1], z0], [Cc[0], Cc[1], z1], [B[0], B[1], z1]], shade(col, 0.72)); // right face
+        poly([[D[0], D[1], z0], [Cc[0], Cc[1], z0], [Cc[0], Cc[1], z1], [D[0], D[1], z1]], shade(col, 0.86)); // left face
+        poly([[A[0], A[1], z1], [B[0], B[1], z1], [Cc[0], Cc[1], z1], [D[0], D[1], z1]], shade(col, 1.25)); // top
+      }
+      ctx.font = '11px Commissioner, system-ui, sans-serif'; ctx.fillStyle = C.ink2;
+      const k0 = P(4.2, -0.2, 0), k1 = P(4.2, -0.2, 0.5); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(...k0); ctx.lineTo(...k1); ctx.moveTo(k1[0] - 4, k1[1]); ctx.lineTo(k1[0] + 4, k1[1]); ctx.moveTo(k0[0] - 4, k0[1]); ctx.lineTo(k0[0] + 4, k0[1]); ctx.stroke();
+      ctx.fillText('0,5', k1[0] + 7, (k0[1] + k1[1]) / 2 + 4);
+    };
+    const drawNMR = () => {
+      const { ctx, w, h } = setup(nmrCv);
+      const padL = 44, pw = w - padL - 12, rowH = (h - 34) / 2;
+      ctx.clearRect(0, 0, w, h);
+      if (!result) return;
+      const F = 900, X = (f) => padL + (f + F) / (2 * F) * pw, lw = 22;
+      [0, 1].forEach((q) => {
+        const top = 8 + q * rowH;
+        paperGrid(ctx, padL, top, pw, rowH - 6, 12);
+        const lines = readout === 'y90' ? QE.spectrumLines(result.R, q) : QE.spectrumLinesDirect(result.R, q);
+        const mid = top + (rowH - 6) / 2, A = (rowH - 6) * 0.42;
+        ctx.strokeStyle = C.ink2; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(padL, mid); ctx.lineTo(padL + pw, mid); ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = q === 0 ? C.h : C.p; ctx.lineWidth = 1.7; ctx.beginPath();
+        for (let px = 0; px <= pw; px++) {
+          const f = -F + 2 * F * px / pw; let y = 0;
+          for (const L of lines) { const f0 = (L.partner ? 1 : -1) * J_HZ / 2, d = (f - f0) / (lw / 2); y += (L.re - L.im * d) / (1 + d * d); }
+          const Y = mid - clamp(y, -1.1, 1.1) * A;
+          if (px === 0) ctx.moveTo(padL + px, Y); else ctx.lineTo(padL + px, Y);
+        }
+        ctx.stroke();
+        ctx.font = '12px Commissioner, system-ui, sans-serif'; ctx.fillStyle = q === 0 ? C.h : C.p;
+        ctx.fillText(q === 0 ? '¹H' : '³¹P', 8, mid + 4);
+        ctx.fillStyle = C.ink2; ctx.font = '10px Commissioner, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(q === 0 ? '³¹P: |0⟩' : '¹H: |0⟩', X(-J_HZ / 2), top + 12);
+        ctx.fillText(q === 0 ? '³¹P: |1⟩' : '¹H: |1⟩', X(J_HZ / 2), top + 12);
+        ctx.textAlign = 'left';
+      });
+      ctx.fillStyle = C.ink2; ctx.font = '11px Commissioner, system-ui, sans-serif';
+      for (const f of [-600, 0, 600]) ctx.fillText(`${f}`, X(f) - 10, h - 8);
+      ctx.fillText('Hz', w - 26, h - 8);
+    };
+    const drawSeq = () => {
+      if (!result) { setup(seqCv).ctx.clearRect(0, 0, 1e4, 1e4); return; }
+      const seq = result.seq;
+      const PW = 16, JW = 70, ZW = 26, GAP = 8, padL = 46, PG = 12;
+      let total = padL + 16; let prevCol = -1;
+      for (const p of seq) { if (p.col !== prevCol) { total += GAP * 2; prevCol = p.col; } total += p.k === 'pulse' ? Math.max(8, PW * Math.abs(p.th) / (Math.PI / 2)) + PG : p.k === 'J' ? JW + 8 : ZW; }
+      const cw = Math.max(seqCv.parentElement.clientWidth || 300, total);
+      const { ctx, w, h } = setup(seqCv, cw);
+      ctx.clearRect(0, 0, w, h);
+      const y = [74, 150], ph = 30;
+      ctx.font = '12px Commissioner, system-ui, sans-serif';
+      [0, 1].forEach((q) => {
+        ctx.strokeStyle = q === 0 ? C.h : C.p; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(padL - 6, y[q]); ctx.lineTo(w - 6, y[q]); ctx.stroke();
+        ctx.fillStyle = q === 0 ? C.h : C.p; ctx.fillText(q === 0 ? '¹H' : '³¹P', 10, y[q] + 4);
+      });
+      let x = padL; prevCol = -1;
+      const phName = (ph) => { const d = ((Math.round(ph * 180 / Math.PI) % 360) + 360) % 360; return { 0: 'x', 90: 'y', 180: '−x', 270: '−y' }[d] || `${d}°`; };
+      for (const p of seq) {
+        if (p.col !== prevCol) {
+          x += GAP;
+          if (prevCol >= 0) { ctx.strokeStyle = C.grid2; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(x, 14); ctx.lineTo(x, h - 8); ctx.stroke(); ctx.setLineDash([]); }
+          x += GAP; prevCol = p.col;
+          ctx.fillStyle = C.ink2; ctx.font = '11px Commissioner, system-ui, sans-serif'; ctx.fillText(p.g, x, 14);
+        }
+        if (p.k === 'pulse') {
+          const pw = Math.max(8, PW * Math.abs(p.th) / (Math.PI / 2));
+          const col = p.q === 0 ? C.h : C.p;
+          ctx.fillStyle = col; ctx.fillRect(x, y[p.q] - ph, pw, ph);
+          ctx.fillStyle = C.ink; ctx.font = '10px Commissioner, system-ui, sans-serif'; ctx.textAlign = 'center';
+          ctx.fillText(`${Math.round(Math.abs(p.th) * 180 / Math.PI)}°${phName(p.ph)}`, x + pw / 2, y[p.q] - ph - 5); ctx.textAlign = 'left';
+          x += pw + PG;
+        } else if (p.k === 'J') {
+          ctx.fillStyle = withAlpha(C.rf, 0.22); ctx.fillRect(x, y[0] - 12, JW, y[1] - y[0] + 20);
+          ctx.strokeStyle = C.rf; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y[0] - 12 + 0.5, JW - 1, y[1] - y[0] + 19);
+          ctx.fillStyle = C.ink; ctx.font = '12px Literata, Georgia, serif'; ctx.textAlign = 'center';
+          ctx.fillText('1/2J', x + JW / 2, (y[0] + y[1]) / 2 + 4); ctx.textAlign = 'left';
+          x += JW + 8;
+        } else {
+          const cx = x + ZW / 2 - 2, cy = y[p.q];
+          ctx.fillStyle = C.panel; ctx.strokeStyle = C.ink; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(cx, cy - 7); ctx.lineTo(cx + 7, cy); ctx.lineTo(cx, cy + 7); ctx.lineTo(cx - 7, cy); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = C.ink2; ctx.font = '9px Commissioner, system-ui, sans-serif';
+          ctx.textAlign = 'center'; ctx.fillText(`Z${Math.round(p.th * 180 / Math.PI)}°`.replace('-', '−'), cx, cy + 19); ctx.textAlign = 'left';
+          x += ZW;
+        }
+      }
+      if (!seq.length) { ctx.fillStyle = C.ink2; ctx.fillText('Το κύκλωμα δεν περιέχει πύλες.', padL, 112); }
+    };
+    const drawResults = () => { drawProbs(); drawDM(dmRe, (r, c) => result.R.re[r * 4 + c], 'Re ρ'); drawDM(dmIm, (r, c) => result.R.im[r * 4 + c], 'Im ρ'); drawNMR(); drawSeq(); drawStateSpheres(); };
+    $('#readSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      $$('button', $('#readSeg')).forEach((x) => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+      readout = b.dataset.v;
+      $('#nmrNote').textContent = readout === 'y90'
+        ? 'Με παλμό ανάγνωσης 90°: το πρόσημο κάθε γραμμής δείχνει την κατάσταση του παρατηρούμενου πυρήνα και η θέση της την κατάσταση του γείτονα.'
+        : 'Χωρίς παλμό ανάγνωσης: εμφανίζεται μόνο η εγκάρσια μαγνήτιση, δηλαδή οι συνοχές του πίνακα πυκνότητας (πραγματικό μέρος: απορρόφηση).';
+      drawNMR();
+    });
+
+    // ----- execution -----
+    const statusMsg = $('#statusMsg'), bar = $('#progressBar');
+    const setBusy = (b) => { busy = b; ['#runBtn', '#idealBtn', '#clearBtn'].forEach((id) => { $(id).disabled = b; }); };
+    const compute = (kind) => {
+      const dev = DEVICES[$('#deviceSel').value];
+      const active = cols.slice(0, Math.max(0, lastUsed() + 1));
+      const sts = QE.states(active), v = sts[sts.length - 1];
+      const seq = QE.compile(active, dev.J);
+      const pIdeal = [0, 1, 2, 3].map((i) => v.re[i] * v.re[i] + v.im[i] * v.im[i]);
+      if (kind === 'ideal') {
+        const R = QE.dmFromVec(v);
+        return { kind, R, seq, pIdeal, pMeas: null, F: 1, dur: QE.seqDuration(seq, dev), dev, steps: active.length, bloch: [QE.reducedBloch(R, 0), QE.reducedBloch(R, 1)] };
+      }
+      const Rraw = QE.runSeq(seq, dev, true);
+      const R = QE.tomography(Rraw, 0.012);
+      let pm = [0, 1, 2, 3].map((i) => Math.max(0, R.re[i * 5])); const sm = pm.reduce((a, b) => a + b, 0) || 1; pm = pm.map((x) => x / sm);
+      return { kind, R, seq, pIdeal, pMeas: pm, F: clamp(QE.fidelity(R, v), 0, 1), dur: QE.seqDuration(seq, dev), dev, steps: active.length, bloch: [QE.reducedBloch(R, 0), QE.reducedBloch(R, 1)] };
+    };
+    const factsFor = (r) => {
+      const np = r.seq.filter((p) => p.k === 'pulse').length, nj = r.seq.filter((p) => p.k === 'J').length;
+      const parts = [`<span>Παλμοί RF: <b>${np}</b></span>`, `<span>Περίοδοι σύζευξης J: <b>${nj}</b></span>`, `<span>Διάρκεια ακολουθίας: <b>${fmt(r.dur * 1000, 2)} ms</b></span>`];
+      if (r.kind === 'nmr') parts.push(`<span>Πιστότητα ⟨ψ|ρ|ψ⟩: <b>${fmt(r.F)}</b></span>`);
+      return parts.join('');
+    };
+    const finish = (r) => {
+      result = r; bar.style.width = '100%';
+      $('#runFacts').innerHTML = factsFor(r);
+      $('#seqLegend').textContent = `${r.dev.name}, ${fmt(r.dur * 1000, 2)} ms`;
+      statusMsg.textContent = r.kind === 'nmr'
+        ? `Ολοκληρώθηκε στο ${r.dev.name}. Πιστότητα ως προς την ιδανική κατάσταση: ${fmt(r.F)}.`
+        : 'Ιδανική προσομοίωση, χωρίς θόρυβο. Πατήστε «Εκτέλεση σε NMR» για την προσομοιωμένη συσκευή.';
+      showStep(r.steps, false);
+      drawResults();
+      setTimeout(() => { if (!busy) bar.style.width = '0'; }, 900);
+    };
+    const runNMR = () => {
+      if (busy) return; closePop(); setBusy(true);
+      const r = compute('nmr');
+      const np = r.seq.filter((p) => p.k === 'pulse').length, nj = r.seq.filter((p) => p.k === 'J').length;
+      const stages = [
+        [0.0, 'Προετοιμασία ψευδοκαθαρής κατάστασης |00⟩ με τη μέθοδο χαλάρωσης…'],
+        [0.22, `Εφαρμογή ${np} παλμών ραδιοσυχνοτήτων και ${nj} περιόδων σύζευξης J…`],
+      ];
+      for (let k = 1; k <= 6; k++) stages.push([0.42 + 0.09 * (k - 1), `Ανάγνωση: πείραμα τομογραφίας ${k} από 6…`]);
+      const T = reduceMotion ? 300 : 2600, t0 = performance.now();
+      const tick = (now) => {
+        const f = clamp((now - t0) / T, 0, 1);
+        bar.style.width = `${Math.round(f * 100)}%`;
+        let msg = stages[0][1]; for (const [s, m] of stages) if (f >= s) msg = m;
+        statusMsg.textContent = msg;
+        if (f < 1) requestAnimationFrame(tick); else { setBusy(false); finish(r); }
+      };
+      requestAnimationFrame(tick);
+    };
+    const runIdeal = () => { if (busy) return; closePop(); finish(compute('ideal')); };
+    $('#runBtn').addEventListener('click', runNMR);
+    $('#idealBtn').addEventListener('click', runIdeal);
+    $('#clearBtn').addEventListener('click', () => { closePop(); sel.value = 'empty'; loadExample('empty'); });
+    sel.addEventListener('change', () => { closePop(); if (sel.value && sel.value !== 'custom') loadExample(sel.value); });
+    $('#deviceSel').addEventListener('change', () => { if (result && result.kind === 'nmr') statusMsg.textContent = 'Άλλαξε η συσκευή. Πατήστε «Εκτέλεση σε NMR» για νέα εκτέλεση.'; });
+
+    const changed = (fromExample) => {
+      const n = lastUsed() + 1;
+      if (fromExample) { result = null; finish(compute('ideal')); return; }
+      if (result && result.kind === 'nmr') statusMsg.textContent = 'Το κύκλωμα άλλαξε. Πατήστε «Εκτέλεση σε NMR» για νέα εκτέλεση.';
+      result = compute('ideal');
+      $('#runFacts').innerHTML = factsFor(result);
+      $('#seqLegend').textContent = `${result.dev.name}, ${fmt(result.dur * 1000, 2)} ms`;
+      if (!(statusMsg.textContent || '').startsWith('Το κύκλωμα')) statusMsg.textContent = 'Ιδανική προσομοίωση, χωρίς θόρυβο. Πατήστε «Εκτέλεση σε NMR» για την προσομοιωμένη συσκευή.';
+      showStep(n, true); drawResults();
+    };
+
+    const frame = (dt) => { if (anim.t < 1) { anim.t = Math.min(1, anim.t + dt / 0.45); if (bq.some(isVis)) drawStateSpheres(); } };
+    redrawers.push(() => { render(); if (result) drawResults(); });
+    sel.value = 'bell'; loadExample('bell');
+    return { frame };
+  })();
+
+  // =====================================================================
+  // GUIDED TOUR (first visit to each tool, or on demand)
+  // =====================================================================
+  const tour = (() => {
+    const T = {
+      sim: [
+        { sel: null, title: 'Καλώς ήρθατε στην προσομοίωση NMR', text: 'Σε λίγα βήματα θα δείτε τι κάνει κάθε στοιχείο της σελίδας. Μπορείτε να παραλείψετε τον οδηγό και να τον ξαναδείτε όποτε θέλετε από το κουμπί «Οδηγός χρήσης».' },
+        { sel: '#sim .stage', title: 'Η μαγνήτιση του δείγματος', text: 'Κάθε λεπτό βέλος είναι μια ομάδα πυρηνικών spin και το παχύ βέλος η συνολική μαγνήτιση, αυτή που μετρά το πηνίο. Σύρετε τη σφαίρα με το ποντίκι ή το δάχτυλο για να την περιστρέψετε.' },
+        { sel: '#grpPulse', title: 'Εφαρμόστε έναν παλμό', text: 'Επιλέξτε πυρήνα, γωνία και άξονα και πατήστε «Εφαρμογή παλμού». Ξεκινήστε με 90° στον x: η μαγνήτιση γέρνει στο οριζόντιο επίπεδο. Με την «Επαναφορά σε ισορροπία» επιστρέφει στον άξονα z.' },
+        { sel: '#scopePlot', title: 'Το σήμα στο πηνίο', text: 'Μετά τον παλμό η μαγνήτιση μεταπίπτει και επάγει σήμα στο πηνίο. Το σήμα σβήνει καθώς τα spin χάνουν τον συγχρονισμό τους: αυτή είναι η αποσυνοχή.' },
+        { sel: '#specPlot', title: 'Φάσμα και ταλαντώσεις Rabi', text: 'Ο μετασχηματισμός Fourier του σήματος δίνει το φάσμα, με κορυφή στη συχνότητα αποσυντονισμού. Στην καρτέλα «Ταλαντώσεις Rabi» βλέπετε πώς η γωνία στροφής εξαρτάται από τη διάρκεια του παλμού.' },
+        { sel: '#grpParams', title: 'Οι παράμετροι του δείγματος', text: 'Αλλάξτε τον αποσυντονισμό, την ανομοιογένεια του πεδίου και τον χρόνο T₂ και δείτε πώς αλλάζουν το σήμα και το φάσμα. Ενεργοποιήστε τη σύζευξη J: το φάσμα γίνεται διπλέτα.' },
+        { sel: '#grpEcho', title: 'Ηχώ spin', text: 'Η ακολουθία 90°–τ–180°–τ αναστρέφει την αποσυνοχή που οφείλεται στην ανομοιογένεια του πεδίου. Παρακολουθήστε τα βέλη να ξανασυγκεντρώνονται και την ηχώ να εμφανίζεται στο σήμα.' },
+        { sel: '#grpView', title: 'Σύστημα αναφοράς και ταχύτητα', text: 'Στο περιστρεφόμενο σύστημα η κίνηση φαίνεται αργή και καθαρή. Στο εργαστηριακό προστίθεται η μετάπτωση Larmor, πολύ επιβραδυμένη. Με την ταχύτητα προβολής ρυθμίζετε πόσο γρήγορα κυλά ο χρόνος.' },
+        { sel: '#simGuideBtn', title: 'Έτοιμοι', text: 'Δοκιμάστε τώρα έναν παλμό 90° και μετά την ηχώ spin. Ο οδηγός είναι πάντα διαθέσιμος από αυτό το κουμπί.' },
+      ],
+      composer: [
+        { sel: null, title: 'Καλώς ήρθατε στον συνθέτη κβαντικών κυκλωμάτων', text: 'Εδώ συνθέτετε κυκλώματα δύο qubits και τα εκτελείτε σε προσομοιωμένο κβαντικό υπολογιστή NMR. Μπορείτε να παραλείψετε τον οδηγό και να τον ξαναδείτε από το κουμπί «Οδηγός χρήσης».' },
+        { sel: '#palette', title: 'Οι κβαντικές πύλες', text: 'Σύρετε μια πύλη πάνω σε μια γραμμή qubit. Σε οθόνη αφής πατήστε την πύλη και μετά τη θέση όπου θέλετε να μπει. Οι CNOT, CZ και SWAP πιάνουν και τα δύο qubits.' },
+        { sel: '#circuitWrap', title: 'Το κύκλωμα', text: 'Το Q0 είναι ο πυρήνας ¹H και το Q1 ο ³¹P. Ο χρόνος κυλά από αριστερά προς τα δεξιά. Πατήστε μια τοποθετημένη πύλη για να αλλάξετε τη γωνία της, να αντιστρέψετε μια CNOT ή να τη διαγράψετε.' },
+        { sel: '#exampleField', title: 'Έτοιμα παραδείγματα', text: 'Ξεκινήστε από ένα παράδειγμα: κατάσταση Bell, αλγόριθμος Deutsch, αναζήτηση Grover. Κάτω από το κύκλωμα εμφανίζεται μια σύντομη εξήγηση για το καθένα.' },
+        { sel: '#runBar', title: 'Εκτέλεση', text: 'Η «Ιδανική προσομοίωση» δίνει το θεωρητικό αποτέλεσμα. Η «Εκτέλεση σε NMR» τρέχει το κύκλωμα στη συσκευή που επιλέξατε, με αποσυνοχή, ατέλειες παλμών και τομογραφία, όπως στην πραγματική συσκευή.' },
+        { sel: '#resProb', title: 'Πιθανότητες μέτρησης', text: 'Το διακεκομμένο πλαίσιο δείχνει την ιδανική πιθανότητα κάθε κατάστασης και η γεμάτη στήλη το αποτέλεσμα της προσομοιωμένης συσκευής.' },
+        { sel: '#resState', title: 'Βήμα προς βήμα', text: 'Μετακινήστε τον δρομέα για να δείτε την κατάσταση μετά από κάθε στήλη του κυκλώματος. Όταν τα qubits διεμπλέκονται, τα διανύσματα Bloch μικραίνουν.' },
+        { sel: '#resDM', title: 'Πίνακας πυκνότητας', text: 'Αυτό επιστρέφει η τομογραφία. Τα διαγώνια στοιχεία είναι οι πληθυσμοί. Τα μη διαγώνια είναι οι συνοχές, που ξεχωρίζουν μια κβαντική κατάσταση από ένα κλασικό μείγμα.' },
+        { sel: '#resNMR', title: 'Φάσματα NMR', text: 'Έτσι «βλέπει» η συσκευή την κατάσταση: με τον παλμό ανάγνωσης, το πρόσημο κάθε γραμμής δείχνει την κατάσταση του πυρήνα και η θέση της την κατάσταση του γείτονα.' },
+        { sel: '#resSeq', title: 'Ακολουθία παλμών', text: 'Κάθε πύλη μεταφράζεται σε παλμούς ραδιοσυχνοτήτων, εικονικές στροφές z και αναμονές υπό τη σύζευξη J. Δείτε πόσο μεγαλώνει η ακολουθία σε πιο σύνθετα κυκλώματα.' },
+        { sel: '#composerGuideBtn', title: 'Έτοιμοι', text: 'Δοκιμάστε τώρα το παράδειγμα Bell και πατήστε «Εκτέλεση σε NMR». Ο οδηγός είναι πάντα διαθέσιμος από αυτό το κουμπί.' },
+      ],
+    };
+    const KEY = (id) => `nmrqc-tour-${id}-v1`;
+    const mem = {};
+    const seen = (id) => { if (mem[id]) return true; try { return !!window.localStorage.getItem(KEY(id)); } catch (e) { return false; } };
+    const markSeen = (id) => { mem[id] = true; try { window.localStorage.setItem(KEY(id), '1'); } catch (e) { /* storage unavailable */ } };
+    const spot = document.createElement('div'); spot.className = 'tour-spot'; spot.hidden = true; spot.setAttribute('aria-hidden', 'true');
+    const bub = document.createElement('div'); bub.className = 'tour-bubble'; bub.hidden = true;
+    bub.setAttribute('role', 'dialog'); bub.setAttribute('aria-labelledby', 'tourTitle'); bub.setAttribute('aria-describedby', 'tourText');
+    document.body.append(spot, bub);
+    let st = null, retarget = null, returnFocus = null;
+    const target = () => (st && T[st.id][st.i].sel ? $(T[st.id][st.i].sel) : null);
+    const place = () => {
+      if (!st) return;
+      const vw = window.innerWidth, vh = window.innerHeight, el = target();
+      const dock = vw < 640;
+      bub.classList.toggle('dock', dock);
+      if (!el) {
+        spot.style.left = `${vw / 2}px`; spot.style.top = `${vh / 2}px`; spot.style.width = '0px'; spot.style.height = '0px'; spot.style.outlineWidth = '0';
+        if (!dock) { bub.style.left = `${Math.max(12, (vw - bub.offsetWidth) / 2)}px`; bub.style.top = `${Math.max(12, (vh - bub.offsetHeight) / 2)}px`; }
+        return;
+      }
+      spot.style.outlineWidth = '2px';
+      const r = el.getBoundingClientRect(), pad = 6;
+      spot.style.left = `${r.left - pad}px`; spot.style.top = `${r.top - pad}px`;
+      spot.style.width = `${r.width + 2 * pad}px`; spot.style.height = `${r.height + 2 * pad}px`;
+      if (dock) return;
+      const bw = bub.offsetWidth, bh = bub.offsetHeight, gap = 14;
+      let left, top;
+      if (r.bottom + gap + bh < vh - 8) { top = r.bottom + gap; left = r.left; }
+      else if (r.top - gap - bh > 64) { top = r.top - gap - bh; left = r.left; }
+      else if (r.right + gap + bw < vw - 8) { left = r.right + gap; top = r.top; }
+      else if (r.left - gap - bw > 8) { left = r.left - gap - bw; top = r.top; }
+      else { left = (vw - bw) / 2; top = vh - bh - 16; }
+      bub.style.left = `${clamp(left, 12, vw - bw - 12)}px`;
+      bub.style.top = `${clamp(top, 64, vh - bh - 12)}px`;
+    };
+    const scrollToTarget = () => {
+      const el = target(); if (!el) return;
+      const r = el.getBoundingClientRect(), vh = window.innerHeight, vw = window.innerWidth;
+      const want = vw < 640 ? 72 : Math.max(72, (vh - r.height) / 2);
+      const y = window.scrollY + r.top - want;
+      try { window.scrollTo({ top: Math.max(0, y), behavior: reduceMotion ? 'auto' : 'smooth' }); } catch (e) { window.scrollTo(0, Math.max(0, y)); }
+    };
+    const render = () => {
+      const steps = T[st.id], s = steps[st.i], last = st.i === steps.length - 1;
+      bub.innerHTML = `<div class="tour-count">Βήμα ${st.i + 1} από ${steps.length}</div>`
+        + `<h3 id="tourTitle">${s.title}</h3><p id="tourText">${s.text}</p>`
+        + '<div class="tour-actions"><button type="button" class="btn small" data-act="skip">Παράλειψη οδηγού</button><span class="spacer"></span>'
+        + `<button type="button" class="btn small" data-act="back"${st.i === 0 ? ' disabled' : ''}>Πίσω</button>`
+        + `<button type="button" class="btn small primary" data-act="next">${last ? 'Τέλος' : 'Επόμενο'}</button></div>`;
+      spot.hidden = false; bub.hidden = false;
+      scrollToTarget(); place();
+      clearTimeout(retarget); retarget = setTimeout(place, reduceMotion ? 30 : 480);
+      const nb = $('[data-act="next"]', bub); if (nb) nb.focus({ preventScroll: true });
+    };
+    const end = () => {
+      if (!st) return;
+      markSeen(st.id); st = null;
+      spot.hidden = true; bub.hidden = true; bub.innerHTML = '';
+      window.removeEventListener('scroll', place); window.removeEventListener('resize', place);
+      if (returnFocus && returnFocus.focus) returnFocus.focus({ preventScroll: true });
+      returnFocus = null;
+    };
+    const go = (d) => { if (!st) return; const n = st.i + d; if (n < 0) return; if (n >= T[st.id].length) { end(); return; } st.i = n; render(); };
+    bub.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.act === 'skip') end(); else if (b.dataset.act === 'next') go(1); else if (b.dataset.act === 'back') go(-1);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (!st) return;
+      if (e.key === 'Escape') { e.preventDefault(); end(); }
+      else if (e.key === 'ArrowRight') go(1);
+      else if (e.key === 'ArrowLeft') go(-1);
+    });
+    const start = (id) => {
+      if (!T[id]) return;
+      if (st) end();
+      returnFocus = document.activeElement;
+      st = { id, i: 0 };
+      window.addEventListener('scroll', place, { passive: true }); window.addEventListener('resize', place);
+      render();
+    };
+    const maybeStart = (id) => {
+      if (!T[id] || seen(id)) return;
+      setTimeout(() => { const page = $('#' + id); if (page && !page.hidden && !st && !seen(id)) start(id); }, 700);
+    };
+    $$('[data-tour]').forEach((b) => b.addEventListener('click', () => start(b.dataset.tour)));
+    return { start, maybeStart, end, active: () => !!st };
+  })();
+
+  // ---------- pages (hash router) ----------
+  const pages = $$('[data-page]');
+  const showPage = () => {
+    const id = (location.hash || '#home').slice(1);
+    const target = pages.find((p) => p.id === id) || pages[0];
+    tour.end();
+    pages.forEach((p) => { p.hidden = p !== target; });
+    $$('.nav a').forEach((a) => { if (a.getAttribute('href') === '#' + target.id) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    window.scrollTo(0, 0);
+    if (target.id === 'sim') phys.onShow();
+    requestAnimationFrame(() => redrawAll());
+    tour.maybeStart(target.id);
+  };
+  window.addEventListener('hashchange', showPage);
+  showPage();
+
+  // ---------- main loop ----------
+  let last = null;
+  const loop = (now) => {
+    const dt = last == null ? 0.016 : Math.min(0.05, (now - last) / 1000); last = now;
+    if (!reduceMotion && !$('#home').hidden && isVis(hero.cv)) { hero.step(dt); hero.draw(); }
+    phys.frame(dt);
+    composer.frame(dt);
+    requestAnimationFrame(loop);
+  };
+  hero.draw();
+  requestAnimationFrame(loop);
+  let rs = null;
+  window.addEventListener('resize', () => { clearTimeout(rs); rs = setTimeout(redrawAll, 120); });
+})();
+
+</script>
+</body>
+</html>
